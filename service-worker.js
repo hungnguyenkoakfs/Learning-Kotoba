@@ -1,4 +1,4 @@
-const CACHE_NAME = "kotoba-booster-cache-v1";
+const CACHE_NAME = "kotoba-booster-cache-v2";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   "./app.js",
   "./favicon.svg",
   "./manifest.json",
+  "./kotoba_database.js",
   "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap",
   "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js",

@@ -107,10 +107,30 @@ document.addEventListener("DOMContentLoaded", () => {
 // Load vocabulary from localStorage
 function loadVocabList() {
   const localData = localStorage.getItem("kotoba_vocab_list");
+  
+  // Auto-detect App Data sync on startup
+  if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
+    const dbLength = window.KOTOBA_PRESET_DB.length;
+    let localLength = 0;
+    if (localData) {
+      try { localLength = JSON.parse(localData).length; } catch(e) {}
+    }
+    
+    // If the DB has different number of words than local storage, prompt to sync!
+    if (dbLength !== localLength) {
+      if (confirm(`Phát hiện bản cập nhật dữ liệu từ máy tính (${dbLength} từ). Bạn có muốn đồng bộ lên điện thoại không?`)) {
+        vocabList = [...window.KOTOBA_PRESET_DB];
+        saveVocabList();
+        updateGlobalStats();
+        renderVocabTable();
+        return;
+      }
+    }
+  }
+
   if (localData) {
     try {
       vocabList = JSON.parse(localData);
-      // Retrofit chapter field if missing
       vocabList = vocabList.map(item => ({
         ...item,
         chapter: item.chapter || "Từ vựng mẫu N5-N4"
@@ -123,16 +143,11 @@ function loadVocabList() {
       }));
     }
   } else {
-    // Fresh launch: Prioritize external database (App Data) if available
-    if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
-      vocabList = [...window.KOTOBA_PRESET_DB];
-    } else {
-      // Fallback to minimal presets
-      vocabList = presetVocabulary.map(item => ({
-        ...item,
-        chapter: item.chapter || "Từ vựng mẫu N5-N4"
-      }));
-    }
+    // Fresh launch fallback
+    vocabList = presetVocabulary.map(item => ({
+      ...item,
+      chapter: item.chapter || "Từ vựng mẫu N5-N4"
+    }));
     saveVocabList();
   }
   

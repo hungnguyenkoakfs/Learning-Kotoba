@@ -255,6 +255,9 @@
                 </h2>
                 
                 <div class="vocab-table-actions">
+                  <button id="btn-export-db" class="btn-primary btn-sm" title="Xuất file cơ sở dữ liệu để đồng bộ lên điện thoại" style="background: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--purple))); color: white; border: none;">
+                    <i data-lucide="download-cloud"></i> Xuất App Data
+                  </button>
                   <button id="btn-clear-all" class="btn-danger btn-sm" title="Xóa toàn bộ từ vựng">
                     <i data-lucide="trash-2"></i> Xóa tất cả
                   </button>
@@ -419,6 +422,9 @@
   <script>
     lucide.createIcons();
   </script>
+  
+  <!-- Database (Sync from PC) -->
+  <script src="kotoba_database.js"></script>
   
   <!-- App JS Logic -->
   <script src="app.js"></script>

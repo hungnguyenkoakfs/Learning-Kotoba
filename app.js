@@ -123,11 +123,16 @@ function loadVocabList() {
       }));
     }
   } else {
-    // Fresh launch, pre-populate presets
-    vocabList = presetVocabulary.map(item => ({
-      ...item,
-      chapter: item.chapter || "Từ vựng mẫu N5-N4"
-    }));
+    // Fresh launch: Prioritize external database (App Data) if available
+    if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
+      vocabList = [...window.KOTOBA_PRESET_DB];
+    } else {
+      // Fallback to minimal presets
+      vocabList = presetVocabulary.map(item => ({
+        ...item,
+        chapter: item.chapter || "Từ vựng mẫu N5-N4"
+      }));
+    }
     saveVocabList();
   }
   
@@ -689,7 +694,49 @@ function clearAllVocab() {
   }
 }
 
+function exportDatabase() {
+  if (vocabList.length === 0) {
+    showToast("Không có dữ liệu để xuất!", "error");
+    return;
+  }
+  
+  const dbContent = `// File cơ sở dữ liệu từ vựng Kotoba Booster.
+// Được tạo tự động vào lúc ${new Date().toLocaleString('vi-VN')}
+window.KOTOBA_PRESET_DB = ${JSON.stringify(vocabList, null, 2)};
+`;
+
+  const blob = new Blob([dbContent], { type: "text/javascript;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "kotoba_database.js";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast("Đã xuất file dữ liệu! Hãy lưu vào thư mục dự án trên máy tính để đồng bộ.", "success");
+}
+
 function loadPresetVocabulary() {
+  if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
+    if (confirm("Phát hiện dữ liệu đồng bộ (App Data). Bạn có muốn nạp dữ liệu này không? (Dữ liệu hiện tại sẽ bị xóa)")) {
+      vocabList = [...window.KOTOBA_PRESET_DB];
+      saveVocabList();
+      updateGlobalStats();
+      populateChapterDropdown();
+      renderVocabTable();
+      
+      currentIndex = 0;
+      historyStack = [];
+      historyIndex = -1;
+      displayCurrentWord();
+      
+      showToast("Đã tải dữ liệu đồng bộ thành công!", "success");
+    }
+    return;
+  }
+  
   if (confirm("Nạp lại bộ từ vựng N5-N4 mẫu của hệ thống?")) {
     vocabList = presetVocabulary.map(item => ({
       ...item,
@@ -1042,6 +1089,8 @@ function bindEvents() {
   // Table Manager triggers
   document.getElementById("btn-clear-all").addEventListener("click", clearAllVocab);
   document.getElementById("btn-load-preset").addEventListener("click", loadPresetVocabulary);
+  const btnExportDb = document.getElementById("btn-export-db");
+  if (btnExportDb) btnExportDb.addEventListener("click", exportDatabase);
   
   // Table dynamic search input
   document.getElementById("vocab-search-input").addEventListener("input", renderVocabTable);

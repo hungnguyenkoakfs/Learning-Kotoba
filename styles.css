@@ -50,11 +50,11 @@ body {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  filter: blur(140px);
   z-index: -1;
-  opacity: 0.25;
+  opacity: 0.15;
   pointer-events: none;
   animation: floatBlobs 20s infinite alternate ease-in-out;
+  will-change: transform;
 }
 
 .blob-purple {

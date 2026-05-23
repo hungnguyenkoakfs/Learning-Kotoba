@@ -1,0 +1,18 @@
+{
+  "name": "Kotoba Booster",
+  "short_name": "Kotoba Booster",
+  "description": "Trình học từ vựng tiếng Nhật phản xạ nhanh offline",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0c1d",
+  "theme_color": "#7000ff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

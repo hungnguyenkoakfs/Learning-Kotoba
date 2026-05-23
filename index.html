@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kotoba Booster - Trình Học Từ Vựng Tiếng Nhật Phản Xạ Nhanh</title>
+  <meta name="description" content="Học từ vựng tiếng Nhật bằng phương pháp phản xạ nhanh hiển thị ngẫu nhiên từ vựng mỗi giây. Hỗ trợ âm thanh đọc bản xứ và import hàng loạt bằng Excel.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- SheetJS CDN (Excel Processing) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- PDF.js CDN (PDF Vocabulary Extraction) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Favicon and PWA Meta -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7000ff">
+  
+  <!-- Apple Touch Customization -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kotoba Booster">
+  <link rel="apple-touch-icon" href="favicon.svg">
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Glowing Blobs -->
+  <div class="blob blob-purple"></div>
+  <div class="blob blob-cyan"></div>
+  <div class="blob blob-magenta"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i data-lucide="zap"></i>
+        </div>
+        <div class="logo-text">
+          <h1>KOTOBA <span>BOOSTER</span></h1>
+          <p>Trình học từ vựng tiếng Nhật phản xạ nhanh</p>
+        </div>
+      </div>
+      
+      <!-- Stats & View Switcher -->
+      <div class="header-controls">
+        <div class="stat-badge" id="vocab-counter-badge">
+          <i data-lucide="database"></i>
+          <span>Từ vựng: <strong id="total-words-count">0</strong></span>
+        </div>
+
+        <div class="filter-badge" id="chapter-filter-container">
+          <i data-lucide="folder-kanban"></i>
+          <select id="player-chapter-select" class="chapter-dropdown" title="Chọn chương học">
+            <option value="all">Tất cả các chương</option>
+          </select>
+        </div>
+        
+        <nav class="view-navigation">
+          <button id="nav-player" class="nav-btn active">
+            <i data-lucide="play-circle"></i> Trình học
+          </button>
+          <button id="nav-manager" class="nav-btn">
+            <i data-lucide="sliders"></i> Quản lý từ vựng
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-content">
+      
+      <!-- VIEW 1: PLAYER VIEW -->
+      <section id="player-view" class="view-section active">
+        <div class="player-layout">
+          <!-- Main Flashcard -->
+          <div class="card-container">
+            <!-- Progress Line Indicator -->
+            <div class="progress-bar-container">
+              <div id="card-progress-bar" class="progress-bar"></div>
+            </div>
+            
+            <div id="vocab-card" class="vocab-card">
+              <!-- TTS Read Indicator -->
+              <button id="card-speak-btn" class="speak-circle-btn" title="Nghe phát âm">
+                <i data-lucide="volume-2"></i>
+              </button>
+              
+              <!-- Card Content -->
+              <div class="card-content-inner">
+                <div id="card-hiragana" class="hiragana-text">読み方</div>
+                <div id="card-kanji" class="kanji-text">漢字</div>
+                <div class="card-divider"></div>
+                
+                <div class="card-translation-area">
+                  <div id="card-hanviet" class="hanviet-badge">ÂM HÁN VIỆT</div>
+                  <div id="card-meaning" class="meaning-text">Nghĩa tiếng Việt của từ vựng</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Controls Bar -->
+          <div class="player-controls-container">
+            <div class="controls-status">
+              <span id="player-mode-status" class="status-indicator active">Đang tự động chuyển</span>
+              <span id="player-progress-ratio">0 / 0 từ</span>
+            </div>
+            
+            <!-- Controls Grid -->
+            <div class="controls-panel">
+              <!-- Audio Settings -->
+              <div class="control-group speech-controls">
+                <button id="btn-auto-speak" class="action-btn-toggle" title="Tự động đọc từ mới">
+                  <i data-lucide="headphones"></i>
+                  <span>Auto Đọc</span>
+                </button>
+                <div class="voice-selection-container">
+                  <select id="voice-select" class="voice-dropdown" title="Chọn giọng đọc">
+                    <option value="">-- Đang nạp giọng đọc --</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Main Playback buttons -->
+              <div class="control-group playback-buttons">
+                <button id="btn-prev" class="btn-icon" title="Từ trước đó">
+                  <i data-lucide="skip-back"></i>
+                </button>
+                <button id="btn-play-pause" class="btn-play-pause" title="Bắt đầu / Tạm dừng">
+                  <i data-lucide="pause" id="play-pause-icon"></i>
+                </button>
+                <button id="btn-next" class="btn-icon" title="Từ tiếp theo">
+                  <i data-lucide="skip-forward"></i>
+                </button>
+              </div>
+
+              <!-- Extra options -->
+              <div class="control-group extra-controls">
+                <button id="btn-random" class="action-btn-toggle active" title="Hiển thị ngẫu nhiên">
+                  <i data-lucide="shuffle"></i>
+                  <span>Ngẫu nhiên</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Interval Speed Slider -->
+            <div class="speed-slider-container">
+              <div class="speed-label">
+                <i data-lucide="hourglass"></i> Tốc độ chuyển: <span id="speed-value">1.0</span> giây
+              </div>
+              <div class="slider-row">
+                <span>0.5s</span>
+                <input type="range" id="speed-range" min="0.5" max="5.0" step="0.1" value="1.0" class="neon-slider">
+                <span>5.0s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: MANAGER VIEW -->
+      <section id="manager-view" class="view-section">
+        <!-- Manager Subnav Bar -->
+        <div class="manager-subnav">
+          <button id="tab-excel" class="subnav-btn active">
+            <i data-lucide="file-spreadsheet"></i> Nhập Excel & Thủ công
+          </button>
+          <button id="tab-pdf" class="subnav-btn">
+            <i data-lucide="file-text"></i> Trình nhập PDF N3
+          </button>
+        </div>
+
+        <!-- Tab Content 1: Excel & Manual -->
+        <div id="manager-tab-content-excel" class="tab-content active">
+          <div class="manager-grid">
+          
+          <!-- Column Left: Adding Vocab (Excel Import & Manual) -->
+          <div class="manager-column-left">
+            <!-- Card 1: Import Excel -->
+            <div class="glass-card panel-card">
+              <h2 class="panel-title">
+                <i data-lucide="file-spreadsheet"></i> Nhập Từ Vựng Bằng Excel
+              </h2>
+              <p class="panel-desc">Tải lên danh sách hàng loạt. Bạn có thể sử dụng bất kỳ file Excel nào, hệ thống sẽ tự động đối chiếu các tiêu đề cột thông minh.</p>
+              
+              <!-- Excel Drag and Drop Zone -->
+              <div id="excel-drop-zone" class="drop-zone">
+                <i data-lucide="upload-cloud" class="drop-icon"></i>
+                <p class="drop-text">Kéo & thả file Excel (.xlsx, .xls) vào đây</p>
+                <span class="drop-subtext">hoặc click để chọn file từ máy tính</span>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="file-input">
+              </div>
+
+              <!-- Upload Actions & Templates -->
+              <div class="import-actions">
+                <button id="btn-download-template" class="btn-secondary btn-full">
+                  <i data-lucide="download"></i> Tải File Excel Mẫu
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 2: Manual Word Adder -->
+            <div class="glass-card panel-card">
+              <h2 class="panel-title">
+                <i data-lucide="plus-circle"></i> Thêm Từ Vựng Thủ Công
+              </h2>
+              <form id="manual-add-form" class="manual-form">
+                <div class="form-group">
+                  <label for="input-kanji">Từ vựng (Kanji/Chữ Hán) <span class="required">*</span></label>
+                  <input type="text" id="input-kanji" placeholder="Ví dụ: 先生 hoặc 食べる" required autocomplete="off">
+                </div>
+                
+                <div class="form-group">
+                  <label for="input-hiragana">Cách đọc (Hiragana/Furigana) <span class="required">*</span></label>
+                  <input type="text" id="input-hiragana" placeholder="Ví dụ: せんせい hoặc たべる" required autocomplete="off">
+                </div>
+
+                <div class="form-group-row">
+                  <div class="form-group">
+                    <label for="input-hanviet">Âm Hán Việt</label>
+                    <input type="text" id="input-hanviet" placeholder="Ví dụ: TIÊN SINH" autocomplete="off">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="input-meaning">Nghĩa tiếng Việt <span class="required">*</span></label>
+                    <input type="text" id="input-meaning" placeholder="Ví dụ: Giáo viên" required autocomplete="off">
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-primary btn-full">
+                  <i data-lucide="plus"></i> Thêm vào danh sách
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Column Right: Vocab Table Manager -->
+          <div class="manager-column-right">
+            <div class="glass-card panel-card vocab-list-panel">
+              <div class="panel-header-row">
+                <h2 class="panel-title">
+                  <i data-lucide="list-video"></i> Danh Sách Từ Vựng Hiện Tại
+                </h2>
+                
+                <div class="vocab-table-actions">
+                  <button id="btn-clear-all" class="btn-danger btn-sm" title="Xóa toàn bộ từ vựng">
+                    <i data-lucide="trash-2"></i> Xóa tất cả
+                  </button>
+                  <button id="btn-load-preset" class="btn-info btn-sm" title="Khôi phục danh sách từ vựng mẫu">
+                    <i data-lucide="refresh-cw"></i> Nạp từ mẫu
+                  </button>
+                </div>
+              </div>
+
+              <!-- Search Bar -->
+              <div class="search-bar-container">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="vocab-search-input" placeholder="Tìm kiếm từ vựng, cách đọc, âm Hán Việt hoặc nghĩa..." autocomplete="off">
+              </div>
+
+              <!-- Word Table Container -->
+              <div class="table-container">
+                <table class="vocab-table">
+                  <thead>
+                    <tr>
+                      <th>Kanji</th>
+                      <th>Hiragana</th>
+                      <th>Âm Hán Việt</th>
+                      <th>Nghĩa tiếng Việt</th>
+                      <th class="text-center">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vocab-table-body">
+                    <!-- Dynamic Rows Loaded Here -->
+                  </tbody>
+                </table>
+                <div id="no-words-placeholder" class="no-words-placeholder">
+                  <i data-lucide="folder-open"></i>
+                  <p>Không có từ vựng nào trong danh sách.</p>
+                  <span>Hãy tải file Excel lên hoặc nhập từ thủ công ở cột bên cạnh để bắt đầu học!</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          </div>
+        </div> <!-- End of manager-tab-content-excel -->
+
+        <!-- Tab Content 2: PDF N3 Importer -->
+        <div id="manager-tab-content-pdf" class="tab-content">
+          <div class="pdf-import-grid">
+            
+            <!-- Left Column: Drag & Drop Zone -->
+            <div class="pdf-column-left">
+              <div class="glass-card panel-card">
+                <h2 class="panel-title">
+                  <i data-lucide="file-text"></i> Nhập Từ Vựng PDF N3
+                </h2>
+                <p class="panel-desc">Tải lên tài liệu PDF từ vựng N3. Thuật toán sẽ tự động phân tích chữ Kanji, Hiragana, âm Hán Việt và nghĩa, sắp xếp thành các chương học trực quan.</p>
+                
+                <div id="pdf-drop-zone" class="drop-zone">
+                  <i data-lucide="upload-cloud" class="drop-icon"></i>
+                  <p class="drop-text">Kéo & thả file PDF N3 vào đây</p>
+                  <span class="drop-subtext">hoặc click để chọn file từ máy</span>
+                  <input type="file" id="pdf-file-input" accept=".pdf" class="file-input">
+                </div>
+
+                <!-- PDF extraction progress bar -->
+                <div id="pdf-progress-container" class="pdf-progress-container" style="display: none; margin-top: 20px;">
+                  <div class="progress-info" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; color: var(--text-secondary);">
+                    <span id="pdf-progress-status">Đang quét trang 1...</span>
+                    <span id="pdf-progress-percent">0%</span>
+                  </div>
+                  <div class="progress-bar-container" style="height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 4px; overflow: hidden; width: 100%;">
+                    <div id="pdf-progress-bar" class="progress-bar" style="width: 0%; height: 100%; background: linear-gradient(to right, hsl(var(--cyan)), hsl(var(--purple))); box-shadow: 0 0 8px hsl(var(--cyan));"></div>
+                  </div>
+                </div>
+
+                <!-- PDF extraction stats dashboard -->
+                <div id="pdf-summary-stats" class="pdf-summary-stats" style="display: none; margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 16px;">
+                  <div class="pdf-stat-row" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">Số trang đã quét:</span>
+                    <strong id="pdf-stat-pages" style="color: #fff;">0</strong>
+                  </div>
+                  <div class="pdf-stat-row" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">Tổng số chương tìm thấy:</span>
+                    <strong id="pdf-stat-chapters" style="color: hsl(var(--cyan));">0</strong>
+                  </div>
+                  <div class="pdf-stat-row" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 12px;">
+                    <span style="color: var(--text-secondary);">Tổng số từ vựng tìm thấy:</span>
+                    <strong id="pdf-stat-words" style="color: hsl(var(--emerald));">0</strong>
+                  </div>
+                  <button id="btn-pdf-import-action" class="btn-primary btn-full">
+                    <i data-lucide="check-square"></i> Nhập các chương đã chọn
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Workspace Preview -->
+            <div class="pdf-column-right">
+              <div class="glass-card panel-card pdf-preview-panel">
+                <div class="pdf-preview-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                  <h2 class="panel-title" style="margin-bottom: 0;">
+                    <i data-lucide="book-open"></i> Bản Xem Trước PDF
+                  </h2>
+                  <div class="chapter-actions-row" style="display: flex; gap: 8px;">
+                    <button id="btn-pdf-select-all" class="btn-info btn-sm">Chọn tất cả</button>
+                    <button id="btn-pdf-deselect-all" class="btn-secondary btn-sm">Bỏ chọn</button>
+                  </div>
+                </div>
+
+                <div class="pdf-workspace-layout">
+                  <!-- Sidebar list of chapters detected -->
+                  <div class="pdf-chapters-sidebar">
+                    <h3 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 12px;">Các chương phát hiện</h3>
+                    <div id="pdf-chapters-list-container" class="chapters-list-scroll">
+                      <div class="chapters-empty-placeholder">Chưa tải file PDF</div>
+                    </div>
+                  </div>
+
+                  <!-- Table previewing words -->
+                  <div class="pdf-words-preview-container">
+                    <h3 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 12px;">Từ vựng đã phân tích</h3>
+                    <div class="table-container" style="height: 380px;">
+                      <table class="vocab-table">
+                        <thead>
+                          <tr>
+                            <th>Chương</th>
+                            <th>Kanji</th>
+                            <th>Hiragana</th>
+                            <th>Âm Hán Việt</th>
+                            <th>Nghĩa tiếng Việt</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pdf-words-preview-body">
+                          <!-- Words rows render dynamically -->
+                        </tbody>
+                      </table>
+                      <div id="pdf-words-empty" class="no-words-placeholder">
+                        <i data-lucide="eye"></i>
+                        <p>Bản xem trước từ vựng trống</p>
+                        <span>Các từ vựng quét từ PDF sẽ hiển thị đầy đủ tại đây.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Kotoba Booster. Thiết kế cao cấp để tăng tốc phản xạ tiếng Nhật.</p>
+    </footer>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Lucide Icon Initialization -->
+  <script>
+    lucide.createIcons();
+  </script>
+  
+  <!-- App JS Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

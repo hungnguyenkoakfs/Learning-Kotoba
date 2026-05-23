@@ -156,12 +156,27 @@ function updateRatioIndicator() {
   }
 }
 
+let cachedFilteredList = [];
+let cachedVocabLength = -1;
+let cachedActiveFilter = null;
+
 // Filter vocabList based on the selected active chapter
 function getFilteredVocabList() {
-  if (activeChapterFilter === "all") {
-    return vocabList;
+  // Ultra-fast caching: if filter and list length haven't changed, return cached list immediately
+  if (cachedActiveFilter === activeChapterFilter && cachedVocabLength === vocabList.length) {
+    return cachedFilteredList;
   }
-  return vocabList.filter(item => item.chapter === activeChapterFilter);
+  
+  cachedActiveFilter = activeChapterFilter;
+  cachedVocabLength = vocabList.length;
+  
+  if (activeChapterFilter === "all") {
+    cachedFilteredList = vocabList;
+  } else {
+    cachedFilteredList = vocabList.filter(item => item.chapter === activeChapterFilter);
+  }
+  
+  return cachedFilteredList;
 }
 
 // Populate the Player Chapter Filter select dropdown
@@ -216,9 +231,11 @@ function resumeTimerAnimation() {
       showNextWord();
     }
     
-    // Scale percentage to render on the progress bar
+    // Scale percentage to render on the progress bar using hardware-accelerated transform
     const percentage = Math.min((progressAccumulated / playSpeed) * 100, 100);
-    document.getElementById("card-progress-bar").style.width = `${percentage}%`;
+    const progressBar = document.getElementById("card-progress-bar");
+    progressBar.style.transformOrigin = "left";
+    progressBar.style.transform = `scaleX(${percentage / 100})`;
     
     progressAnimId = requestAnimationFrame(step);
   }
@@ -344,7 +361,7 @@ function updatePlayerPlaceholder() {
   document.getElementById("card-kanji").textContent = "Trống";
   document.getElementById("card-meaning").textContent = "Hãy thêm danh sách từ vựng từ Excel hoặc nhập thủ công để bắt đầu học nhé!";
   document.getElementById("card-hanviet").style.display = "none";
-  document.getElementById("card-progress-bar").style.width = "0%";
+  document.getElementById("card-progress-bar").style.transform = "scaleX(0)";
 }
 
 // ==========================================================================
@@ -1114,7 +1131,8 @@ async function parsePDFFile(file) {
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
       progressStatus.textContent = `Đang quét & phân tích trang ${pageNum} / ${numPages}...`;
       const progressVal = Math.round((pageNum / numPages) * 100);
-      progressBar.style.width = `${progressVal}%`;
+      progressBar.style.transformOrigin = "left";
+      progressBar.style.transform = `scaleX(${progressVal / 100})`;
       progressPercent.textContent = `${progressVal}%`;
       
       const page = await pdf.getPage(pageNum);

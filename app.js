@@ -74,13 +74,224 @@ const presetVocabulary = [
   { kanji: "美味しい", hiragana: "おいしい", hanviet: "MỸ VỊ", meaning: "Ngon miệng" }
 ];
 
+// Global Cached DOM Elements Object
+const DOM = {
+  totalWordsCount: null,
+  playerChapterSelect: null,
+  cardProgressBar: null,
+  vocabCard: null,
+  cardSpeakBtn: null,
+  cardHiragana: null,
+  cardKanji: null,
+  cardHanviet: null,
+  cardMeaning: null,
+  playerModeStatus: null,
+  playerProgressRatio: null,
+  voiceSelect: null,
+  speedRange: null,
+  speedValue: null,
+  vocabTableBody: null,
+  noWordsPlaceholder: null,
+  vocabSearchInput: null,
+  pdfChaptersListContainer: null,
+  pdfWordsPreviewBody: null,
+  pdfWordsEmpty: null,
+  pdfProgressStatus: null,
+  pdfProgressPercent: null,
+  pdfProgressBar: null,
+  pdfSummaryStats: null,
+  pdfStatPages: null,
+  pdfStatChapters: null,
+  pdfStatWords: null
+};
+
+function cacheDOMElements() {
+  DOM.totalWordsCount = document.getElementById("total-words-count");
+  DOM.playerChapterSelect = document.getElementById("player-chapter-select");
+  DOM.cardProgressBar = document.getElementById("card-progress-bar");
+  DOM.vocabCard = document.getElementById("vocab-card");
+  DOM.cardSpeakBtn = document.getElementById("card-speak-btn");
+  DOM.cardHiragana = document.getElementById("card-hiragana");
+  DOM.cardKanji = document.getElementById("card-kanji");
+  DOM.cardHanviet = document.getElementById("card-hanviet");
+  DOM.cardMeaning = document.getElementById("card-meaning");
+  DOM.playerModeStatus = document.getElementById("player-mode-status");
+  DOM.playerProgressRatio = document.getElementById("player-progress-ratio");
+  DOM.voiceSelect = document.getElementById("voice-select");
+  DOM.speedRange = document.getElementById("speed-range");
+  DOM.speedValue = document.getElementById("speed-value");
+  DOM.vocabTableBody = document.getElementById("vocab-table-body");
+  DOM.noWordsPlaceholder = document.getElementById("no-words-placeholder");
+  DOM.vocabSearchInput = document.getElementById("vocab-search-input");
+  DOM.pdfChaptersListContainer = document.getElementById("pdf-chapters-list-container");
+  DOM.pdfWordsPreviewBody = document.getElementById("pdf-words-preview-body");
+  DOM.pdfWordsEmpty = document.getElementById("pdf-words-empty");
+  DOM.pdfProgressStatus = document.getElementById("pdf-progress-status");
+  DOM.pdfProgressPercent = document.getElementById("pdf-progress-percent");
+  DOM.pdfProgressBar = document.getElementById("pdf-progress-bar");
+  DOM.pdfSummaryStats = document.getElementById("pdf-summary-stats");
+  DOM.pdfStatPages = document.getElementById("pdf-stat-pages");
+  DOM.pdfStatChapters = document.getElementById("pdf-stat-chapters");
+  DOM.pdfStatWords = document.getElementById("pdf-stat-words");
+}
+
 // ==========================================================================
-// 2. APP INITIALIZATION
+// 2. ASYNC INDEXEDDB & APP INITIALIZATION
 // ==========================================================================
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Load database from localStorage or load preset
-  loadVocabList();
+const DB_NAME = "KotobaBoosterDB";
+const DB_VERSION = 1;
+const STORE_NAME = "vocabulary";
+
+function initDB() {
+  return new Promise((resolve) => {
+    try {
+      if (!window.indexedDB) {
+        console.warn("IndexedDB not supported, falling back to localStorage");
+        resolve(null);
+        return;
+      }
+      
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      
+      request.onerror = (e) => {
+        console.warn("IndexedDB failed to open, falling back to localStorage", e);
+        resolve(null);
+      };
+      
+      request.onsuccess = (e) => {
+        resolve(e.target.result);
+      };
+      
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+        }
+      };
+    } catch (e) {
+      console.warn("Error opening IndexedDB, falling back", e);
+      resolve(null);
+    }
+  });
+}
+
+async function saveVocabListDB(list) {
+  // Sync to localStorage backup (wrapped in protective try...catch)
+  try {
+    localStorage.setItem("kotoba_vocab_list", JSON.stringify(list));
+  } catch (lsError) {
+    console.warn("LocalStorage quota exceeded, continuing with IndexedDB only", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([STORE_NAME], "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => {
+        let addedCount = 0;
+        if (list.length === 0) {
+          resolve(true);
+          return;
+        }
+        
+        list.forEach((item, index) => {
+          const addRequest = store.add({ ...item, listIndex: index });
+          addRequest.onsuccess = () => {
+            addedCount++;
+            if (addedCount === list.length) {
+              resolve(true);
+            }
+          };
+          addRequest.onerror = () => {
+            // resolve anyway to avoid hanging
+            addedCount++;
+            if (addedCount === list.length) {
+              resolve(false);
+            }
+          };
+        });
+      };
+      
+      clearRequest.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB write transaction failed", err);
+      resolve(false);
+    }
+  });
+}
+
+async function loadVocabListDB() {
+  const db = await initDB();
+  if (!db) {
+    try {
+      const data = localStorage.getItem("kotoba_vocab_list");
+      return data ? JSON.parse(data) : [];
+    } catch(e) {
+      return [];
+    }
+  }
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([STORE_NAME], "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      
+      request.onsuccess = (e) => {
+        const items = e.target.result || [];
+        // Sort items by listIndex to maintain user sequence
+        items.sort((a, b) => a.listIndex - b.listIndex);
+        
+        const cleanList = items.map(item => {
+          const { id, listIndex, ...rest } = item;
+          return rest;
+        });
+        
+        if (cleanList.length > 0) {
+          resolve(cleanList);
+        } else {
+          // Fallback to localStorage if store is empty
+          try {
+            const data = localStorage.getItem("kotoba_vocab_list");
+            resolve(data ? JSON.parse(data) : []);
+          } catch(e) {
+            resolve([]);
+          }
+        }
+      };
+      
+      request.onerror = () => {
+        try {
+          const data = localStorage.getItem("kotoba_vocab_list");
+          resolve(data ? JSON.parse(data) : []);
+        } catch(e) {
+          resolve([]);
+        }
+      };
+    } catch (err) {
+      console.warn("IndexedDB read failed, trying localStorage", err);
+      try {
+        const data = localStorage.getItem("kotoba_vocab_list");
+        resolve(data ? JSON.parse(data) : []);
+      } catch(e) {
+        resolve([]);
+      }
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // Cache all DOM elements into global registry
+  cacheDOMElements();
+
+  // Load database from IndexedDB or localStorage fallback
+  await loadVocabList();
   
   // Populate chapter selectors
   populateChapterDropdown();
@@ -94,8 +305,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Set initial player view index and start ticking
   const list = getFilteredVocabList();
   if (list.length > 0) {
-    selectNextWordIndex();
-    displayCurrentWord();
+    selectNextWordIndex(list);
+    displayCurrentWord(list);
     if (isPlaying) {
       resumeTimerAnimation();
     }
@@ -104,23 +315,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Load vocabulary from localStorage
-function loadVocabList() {
-  const localData = localStorage.getItem("kotoba_vocab_list");
+// Load vocabulary from IndexedDB or localStorage
+async function loadVocabList() {
+  let loadedList = [];
+  try {
+    loadedList = await loadVocabListDB();
+  } catch (e) {
+    console.error("Lỗi khi load danh sách từ vựng:", e);
+  }
   
   // Auto-detect App Data sync on startup
   if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
     const dbLength = window.KOTOBA_PRESET_DB.length;
-    let localLength = 0;
-    if (localData) {
-      try { localLength = JSON.parse(localData).length; } catch(e) {}
-    }
+    const localLength = loadedList ? loadedList.length : 0;
     
-    // If the DB has different number of words than local storage, prompt to sync!
+    // If the DB has different number of words than local database, sync!
     if (dbLength !== localLength) {
       if (confirm(`Phát hiện bản cập nhật dữ liệu từ máy tính (${dbLength} từ). Bạn có muốn đồng bộ lên điện thoại không?`)) {
         vocabList = [...window.KOTOBA_PRESET_DB];
-        saveVocabList();
+        await saveVocabList();
         updateGlobalStats();
         renderVocabTable();
         return;
@@ -128,46 +341,45 @@ function loadVocabList() {
     }
   }
 
-  if (localData) {
-    try {
-      vocabList = JSON.parse(localData);
-      vocabList = vocabList.map(item => ({
-        ...item,
-        chapter: item.chapter || "Từ vựng mẫu N5-N4"
-      }));
-    } catch (e) {
-      console.error("Lỗi parse dữ liệu từ vựng trong LocalStorage:", e);
-      vocabList = presetVocabulary.map(item => ({
-        ...item,
-        chapter: item.chapter || "Từ vựng mẫu N5-N4"
-      }));
-    }
+  if (loadedList && loadedList.length > 0) {
+    vocabList = loadedList.map(item => ({
+      ...item,
+      chapter: item.chapter || "Từ vựng mẫu N5-N4"
+    }));
   } else {
     // Fresh launch fallback
     vocabList = presetVocabulary.map(item => ({
       ...item,
       chapter: item.chapter || "Từ vựng mẫu N5-N4"
     }));
-    saveVocabList();
+    await saveVocabList();
   }
   
   updateGlobalStats();
   renderVocabTable();
 }
 
-// Save vocabulary to localStorage
-function saveVocabList() {
-  localStorage.setItem("kotoba_vocab_list", JSON.stringify(vocabList));
+// Save vocabulary to IndexedDB with robust try...catch
+async function saveVocabList() {
+  try {
+    await saveVocabListDB(vocabList);
+  } catch (e) {
+    console.error("Lỗi khi ghi dữ liệu từ vựng vào bộ nhớ:", e);
+  }
 }
 
 // Update the global visual elements (word counter badge, ratio indicators)
 function updateGlobalStats() {
-  document.getElementById("total-words-count").textContent = vocabList.length;
+  if (DOM.totalWordsCount) {
+    DOM.totalWordsCount.textContent = vocabList.length;
+  }
   updateRatioIndicator();
 }
 
 function updateRatioIndicator(list) {
-  const ratioEl = document.getElementById("player-progress-ratio");
+  const ratioEl = DOM.playerProgressRatio;
+  if (!ratioEl) return;
+  
   const targetList = list || getFilteredVocabList();
   if (targetList.length === 0) {
     ratioEl.textContent = "0 / 0 từ";
@@ -201,7 +413,7 @@ function getFilteredVocabList() {
 
 // Populate the Player Chapter Filter select dropdown
 function populateChapterDropdown() {
-  const select = document.getElementById("player-chapter-select");
+  const select = DOM.playerChapterSelect;
   if (!select) return;
   
   const currentVal = select.value || "all";
@@ -234,7 +446,7 @@ function populateChapterDropdown() {
 function resumeTimerAnimation() {
   pauseTimerAnimation();
   
-  const progressBar = document.getElementById("card-progress-bar");
+  const progressBar = DOM.cardProgressBar;
   
   // Animate progress bar using GPU-bound Web Animations API
   if (progressBar) {
@@ -283,7 +495,7 @@ function pauseTimerAnimation() {
     progressAnimId = null;
   }
   
-  const progressBar = document.getElementById("card-progress-bar");
+  const progressBar = DOM.cardProgressBar;
   if (progressBar && progressBar.activeAnimation) {
     progressBar.activeAnimation.pause(); // Pause smoothly in place
   }
@@ -369,7 +581,7 @@ function displayCurrentWord(list) {
   }
   
   const word = targetList[currentIndex];
-  const cardEl = document.getElementById("vocab-card");
+  const cardEl = DOM.vocabCard;
   
   // Trigger card refresh pulse micro-animation using double requestAnimationFrame to avoid synchronous reflows!
   if (cardEl) {
@@ -382,16 +594,18 @@ function displayCurrentWord(list) {
   }
   
   // Write contents
-  document.getElementById("card-hiragana").textContent = word.hiragana || "Cách đọc";
-  document.getElementById("card-kanji").textContent = word.kanji || "漢字";
-  document.getElementById("card-meaning").textContent = word.meaning || "Nghĩa tiếng Việt";
+  if (DOM.cardHiragana) DOM.cardHiragana.textContent = word.hiragana || "Cách đọc";
+  if (DOM.cardKanji) DOM.cardKanji.textContent = word.kanji || "漢字";
+  if (DOM.cardMeaning) DOM.cardMeaning.textContent = word.meaning || "Nghĩa tiếng Việt";
   
-  const hanvietEl = document.getElementById("card-hanviet");
-  if (word.hanviet && word.hanviet.trim()) {
-    hanvietEl.textContent = word.hanviet.toUpperCase();
-    hanvietEl.style.display = "inline-block";
-  } else {
-    hanvietEl.style.display = "none";
+  const hanvietEl = DOM.cardHanviet;
+  if (hanvietEl) {
+    if (word.hanviet && word.hanviet.trim()) {
+      hanvietEl.textContent = word.hanviet.toUpperCase();
+      hanvietEl.style.display = "inline-block";
+    } else {
+      hanvietEl.style.display = "none";
+    }
   }
   
   updateRatioIndicator(targetList);
@@ -403,12 +617,12 @@ function displayCurrentWord(list) {
 }
 
 function updatePlayerPlaceholder() {
-  document.getElementById("card-hiragana").textContent = "Nhấp vào Quản lý";
-  document.getElementById("card-kanji").textContent = "Trống";
-  document.getElementById("card-meaning").textContent = "Hãy thêm danh sách từ vựng từ Excel hoặc nhập thủ công để bắt đầu học nhé!";
-  document.getElementById("card-hanviet").style.display = "none";
+  if (DOM.cardHiragana) DOM.cardHiragana.textContent = "Nhấp vào Quản lý";
+  if (DOM.cardKanji) DOM.cardKanji.textContent = "Trống";
+  if (DOM.cardMeaning) DOM.cardMeaning.textContent = "Hãy thêm danh sách từ vựng từ Excel hoặc nhập thủ công để bắt đầu học nhé!";
+  if (DOM.cardHanviet) DOM.cardHanviet.style.display = "none";
   
-  const progressBar = document.getElementById("card-progress-bar");
+  const progressBar = DOM.cardProgressBar;
   if (progressBar) {
     if (progressBar.activeAnimation) {
       progressBar.activeAnimation.cancel();
@@ -614,11 +828,12 @@ function downloadExcelTemplate() {
 // ==========================================================================
 
 function renderVocabTable() {
-  const tbody = document.getElementById("vocab-table-body");
-  const placeholder = document.getElementById("no-words-placeholder");
-  const searchInput = document.getElementById("vocab-search-input");
-  const filterText = searchInput.value.trim().toLowerCase();
+  const tbody = DOM.vocabTableBody;
+  const placeholder = DOM.noWordsPlaceholder;
+  const searchInput = DOM.vocabSearchInput;
+  if (!tbody || !placeholder || !searchInput) return;
   
+  const filterText = searchInput.value.trim().toLowerCase();
   tbody.innerHTML = "";
   
   const filteredList = vocabList.filter(item => {
@@ -635,7 +850,7 @@ function renderVocabTable() {
   } else {
     placeholder.style.display = "none";
     
-    filteredList.forEach((word, index) => {
+    filteredList.forEach((word) => {
       // Find true index in primary array
       const rawIndex = vocabList.indexOf(word);
       
@@ -658,15 +873,6 @@ function renderVocabTable() {
     
     // Refresh row trash icons
     lucide.createIcons();
-    
-    // Bind row delete events
-    document.querySelectorAll(".btn-row-delete").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const tr = e.target.closest("button");
-        const idx = parseInt(tr.getAttribute("data-index"));
-        deleteWord(idx);
-      });
-    });
   }
 }
 
@@ -906,28 +1112,30 @@ function bindEvents() {
   const viewPlayer = document.getElementById("player-view");
   const viewManager = document.getElementById("manager-view");
   
-  navPlayer.addEventListener("click", () => {
-    navPlayer.classList.add("active");
-    navManager.classList.remove("active");
-    viewPlayer.classList.add("active");
-    viewManager.classList.remove("active");
+  if (navPlayer && navManager && viewPlayer && viewManager) {
+    navPlayer.addEventListener("click", () => {
+      navPlayer.classList.add("active");
+      navManager.classList.remove("active");
+      viewPlayer.classList.add("active");
+      viewManager.classList.remove("active");
+      
+      // Resume cycle timer if isPlaying is true
+      const list = getFilteredVocabList();
+      if (isPlaying && list.length > 0) {
+        resumeTimerAnimation();
+      }
+    });
     
-    // Resume cycle timer if isPlaying is true
-    const list = getFilteredVocabList();
-    if (isPlaying && list.length > 0) {
-      resumeTimerAnimation();
-    }
-  });
-  
-  navManager.addEventListener("click", () => {
-    navPlayer.classList.remove("active");
-    navManager.classList.add("active");
-    viewPlayer.classList.remove("active");
-    viewManager.classList.add("active");
-    
-    // Pause cycle to prevent flashing behind screen
-    pauseTimerAnimation();
-  });
+    navManager.addEventListener("click", () => {
+      navPlayer.classList.remove("active");
+      navManager.classList.add("active");
+      viewPlayer.classList.remove("active");
+      viewManager.classList.add("active");
+      
+      // Pause cycle to prevent flashing behind screen
+      pauseTimerAnimation();
+    });
+  }
 
   // Subnav tab switching inside Manager View
   const tabExcel = document.getElementById("tab-excel");
@@ -935,154 +1143,183 @@ function bindEvents() {
   const tabContentExcel = document.getElementById("manager-tab-content-excel");
   const tabContentPdf = document.getElementById("manager-tab-content-pdf");
 
-  tabExcel.addEventListener("click", () => {
-    tabExcel.classList.add("active");
-    tabPdf.classList.remove("active");
-    tabContentExcel.classList.add("active");
-    tabContentPdf.classList.remove("active");
-  });
+  if (tabExcel && tabPdf && tabContentExcel && tabContentPdf) {
+    tabExcel.addEventListener("click", () => {
+      tabExcel.classList.add("active");
+      tabPdf.classList.remove("active");
+      tabContentExcel.classList.add("active");
+      tabContentPdf.classList.remove("active");
+    });
 
-  tabPdf.addEventListener("click", () => {
-    tabExcel.classList.remove("active");
-    tabPdf.classList.add("active");
-    tabContentExcel.classList.remove("active");
-    tabContentPdf.classList.add("active");
-    
-    // Trigger custom lucide refresh for PDF elements
-    lucide.createIcons();
-  });
+    tabPdf.addEventListener("click", () => {
+      tabExcel.classList.remove("active");
+      tabPdf.classList.add("active");
+      tabContentExcel.classList.remove("active");
+      tabContentPdf.classList.add("active");
+      
+      // Trigger custom lucide refresh for PDF elements
+      lucide.createIcons();
+    });
+  }
 
   // PDF File Upload Bindings
   const pdfDropZone = document.getElementById("pdf-drop-zone");
   const pdfFileInput = document.getElementById("pdf-file-input");
 
-  pdfDropZone.addEventListener("click", () => pdfFileInput.click());
+  if (pdfDropZone && pdfFileInput) {
+    pdfDropZone.addEventListener("click", () => pdfFileInput.click());
 
-  pdfFileInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
-      parsePDFFile(e.target.files[0]);
-    }
-  });
+    pdfFileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        parsePDFFile(e.target.files[0]);
+      }
+    });
 
-  pdfDropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    pdfDropZone.classList.add("dragover");
-  });
+    pdfDropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      pdfDropZone.classList.add("dragover");
+    });
 
-  pdfDropZone.addEventListener("dragleave", () => {
-    pdfDropZone.classList.remove("dragover");
-  });
+    pdfDropZone.addEventListener("dragleave", () => {
+      pdfDropZone.classList.remove("dragover");
+    });
 
-  pdfDropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    pdfDropZone.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) {
-      parsePDFFile(e.dataTransfer.files[0]);
-    }
-  });
+    pdfDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      pdfDropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) {
+        parsePDFFile(e.dataTransfer.files[0]);
+      }
+    });
+  }
 
   // PDF wizard controls
-  document.getElementById("btn-pdf-select-all").addEventListener("click", () => {
-    document.querySelectorAll('#pdf-chapters-list-container input[type="checkbox"]').forEach(chk => {
-      chk.checked = true;
-      chk.closest(".chapter-checkbox-row").classList.add("active");
-    });
-    renderPDFWordsPreview();
-  });
+  const btnPdfSelectAll = document.getElementById("btn-pdf-select-all");
+  const btnPdfDeselectAll = document.getElementById("btn-pdf-deselect-all");
+  const btnPdfImportAction = document.getElementById("btn-pdf-import-action");
 
-  document.getElementById("btn-pdf-deselect-all").addEventListener("click", () => {
-    document.querySelectorAll('#pdf-chapters-list-container input[type="checkbox"]').forEach(chk => {
-      chk.checked = false;
-      chk.closest(".chapter-checkbox-row").classList.remove("active");
+  if (btnPdfSelectAll) {
+    btnPdfSelectAll.addEventListener("click", () => {
+      document.querySelectorAll('#pdf-chapters-list-container input[type="checkbox"]').forEach(chk => {
+        chk.checked = true;
+        chk.closest(".chapter-checkbox-row").classList.add("active");
+      });
+      renderPDFWordsPreview();
     });
-    renderPDFWordsPreview();
-  });
+  }
 
-  document.getElementById("btn-pdf-import-action").addEventListener("click", importSelectedPDFChapters);
+  if (btnPdfDeselectAll) {
+    btnPdfDeselectAll.addEventListener("click", () => {
+      document.querySelectorAll('#pdf-chapters-list-container input[type="checkbox"]').forEach(chk => {
+        chk.checked = false;
+        chk.closest(".chapter-checkbox-row").classList.remove("active");
+      });
+      renderPDFWordsPreview();
+    });
+  }
+
+  if (btnPdfImportAction) {
+    btnPdfImportAction.addEventListener("click", importSelectedPDFChapters);
+  }
   
   // Play Pause Actions
   const btnPlayPause = document.getElementById("btn-play-pause");
   const playPauseIcon = document.getElementById("play-pause-icon");
-  const statusIndicator = document.getElementById("player-mode-status");
+  const statusIndicator = DOM.playerModeStatus;
   
-  btnPlayPause.addEventListener("click", () => {
-    if (vocabList.length === 0) return;
-    
-    isPlaying = !isPlaying;
-    if (isPlaying) {
-      playPauseIcon.setAttribute("data-lucide", "pause");
-      statusIndicator.textContent = "Đang tự động chuyển";
-      statusIndicator.classList.add("active");
-      resumeTimerAnimation();
-      showToast("Bắt đầu tự động chuyển từ!", "info");
-    } else {
-      playPauseIcon.setAttribute("data-lucide", "play");
-      statusIndicator.textContent = "Đang tạm dừng";
-      statusIndicator.classList.remove("active");
-      pauseTimerAnimation();
-      showToast("Đã tạm dừng tự động chuyển!", "info");
-    }
-    lucide.createIcons();
-  });
+  if (btnPlayPause && playPauseIcon && statusIndicator) {
+    btnPlayPause.addEventListener("click", () => {
+      if (vocabList.length === 0) return;
+      
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        playPauseIcon.setAttribute("data-lucide", "pause");
+        statusIndicator.textContent = "Đang tự động chuyển";
+        statusIndicator.classList.add("active");
+        resumeTimerAnimation();
+        showToast("Bắt đầu tự động chuyển từ!", "info");
+      } else {
+        playPauseIcon.setAttribute("data-lucide", "play");
+        statusIndicator.textContent = "Đang tạm dừng";
+        statusIndicator.classList.remove("active");
+        pauseTimerAnimation();
+        showToast("Đã tạm dừng tự động chuyển!", "info");
+      }
+      lucide.createIcons();
+    });
+  }
   
   // Skip buttons
-  document.getElementById("btn-next").addEventListener("click", () => {
-    progressAccumulated = 0;
-    showNextWord();
-    if (isPlaying) {
-      resumeTimerAnimation();
-    }
-  });
+  const btnNext = document.getElementById("btn-next");
+  const btnPrev = document.getElementById("btn-prev");
+
+  if (btnNext) {
+    btnNext.addEventListener("click", () => {
+      progressAccumulated = 0;
+      showNextWord();
+      if (isPlaying) {
+        resumeTimerAnimation();
+      }
+    });
+  }
   
-  document.getElementById("btn-prev").addEventListener("click", () => {
-    showPrevWord();
-    if (isPlaying) {
-      resumeTimerAnimation();
-    }
-  });
+  if (btnPrev) {
+    btnPrev.addEventListener("click", () => {
+      showPrevWord();
+      if (isPlaying) {
+        resumeTimerAnimation();
+      }
+    });
+  }
   
   // Random / Sequence Toggle
   const btnRandom = document.getElementById("btn-random");
-  btnRandom.addEventListener("click", () => {
-    isRandom = !isRandom;
-    if (isRandom) {
-      btnRandom.classList.add("active");
-      showToast("Chế độ: Đọc ngẫu nhiên", "info");
-    } else {
-      btnRandom.classList.remove("active");
-      showToast("Chế độ: Đọc tuần tự", "info");
-    }
-  });
+  if (btnRandom) {
+    btnRandom.addEventListener("click", () => {
+      isRandom = !isRandom;
+      if (isRandom) {
+        btnRandom.classList.add("active");
+        showToast("Chế độ: Đọc ngẫu nhiên", "info");
+      } else {
+        btnRandom.classList.remove("active");
+        showToast("Chế độ: Đọc tuần tự", "info");
+      }
+    });
+  }
   
   // Audio Controls
   const btnAutoSpeak = document.getElementById("btn-auto-speak");
-  btnAutoSpeak.addEventListener("click", () => {
-    autoTTS = !autoTTS;
-    if (autoTTS) {
-      btnAutoSpeak.classList.add("active");
-      showToast("Tự động phát âm khi chuyển từ mới", "success");
-      // speak current immediately
+  if (btnAutoSpeak) {
+    btnAutoSpeak.addEventListener("click", () => {
+      autoTTS = !autoTTS;
+      if (autoTTS) {
+        btnAutoSpeak.classList.add("active");
+        showToast("Tự động phát âm khi chuyển từ mới", "success");
+        // speak current immediately
+        if (currentIndex !== -1) {
+          const word = vocabList[currentIndex];
+          speakWord(word.kanji || word.hiragana);
+        }
+      } else {
+        btnAutoSpeak.classList.remove("active");
+        showToast("Tắt tự động đọc", "info");
+      }
+    });
+  }
+  
+  // Manual card speak button click
+  if (DOM.cardSpeakBtn) {
+    DOM.cardSpeakBtn.addEventListener("click", () => {
       if (currentIndex !== -1) {
         const word = vocabList[currentIndex];
         speakWord(word.kanji || word.hiragana);
       }
-    } else {
-      btnAutoSpeak.classList.remove("active");
-      showToast("Tắt tự động đọc", "info");
-    }
-  });
-  
-  // Manual card speak button click
-  document.getElementById("card-speak-btn").addEventListener("click", () => {
-    if (currentIndex !== -1) {
-      const word = vocabList[currentIndex];
-      speakWord(word.kanji || word.hiragana);
-    }
-  });
+    });
+  }
   
   // Interval speed slider
-  const speedRange = document.getElementById("speed-range");
-  const speedValue = document.getElementById("speed-value");
+  const speedRange = DOM.speedRange;
+  const speedValue = DOM.speedValue;
   
   if (speedRange && speedValue) {
     speedRange.addEventListener("input", (e) => {
@@ -1102,65 +1339,80 @@ function bindEvents() {
   const dropZone = document.getElementById("excel-drop-zone");
   const fileInput = document.getElementById("excel-file-input");
   
-  dropZone.addEventListener("click", () => fileInput.click());
-  
-  fileInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
-      handleExcelUpload(e.target.files[0]);
-    }
-  });
-  
-  dropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropZone.classList.add("dragover");
-  });
-  
-  dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("dragover");
-  });
-  
-  dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) {
-      handleExcelUpload(e.dataTransfer.files[0]);
-    }
-  });
+  if (dropZone && fileInput) {
+    dropZone.addEventListener("click", () => fileInput.click());
+    
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        handleExcelUpload(e.target.files[0]);
+      }
+    });
+    
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+    
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) {
+        handleExcelUpload(e.dataTransfer.files[0]);
+      }
+    });
+  }
   
   // Download excel sample template
-  document.getElementById("btn-download-template").addEventListener("click", downloadExcelTemplate);
+  const btnDownloadTemplate = document.getElementById("btn-download-template");
+  if (btnDownloadTemplate) {
+    btnDownloadTemplate.addEventListener("click", downloadExcelTemplate);
+  }
   
   // Manual word adder form submission
-  document.getElementById("manual-add-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    
-    const kanjiVal = document.getElementById("input-kanji").value;
-    const hiraganaVal = document.getElementById("input-hiragana").value;
-    const hanvietVal = document.getElementById("input-hanviet").value;
-    const meaningVal = document.getElementById("input-meaning").value;
-    
-    addWordManually(kanjiVal, hiraganaVal, hanvietVal, meaningVal);
-    
-    // reset form
-    e.target.reset();
-  });
+  const manualAddForm = document.getElementById("manual-add-form");
+  if (manualAddForm) {
+    manualAddForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      
+      const kanjiVal = document.getElementById("input-kanji").value;
+      const hiraganaVal = document.getElementById("input-hiragana").value;
+      const hanvietVal = document.getElementById("input-hanviet").value;
+      const meaningVal = document.getElementById("input-meaning").value;
+      
+      addWordManually(kanjiVal, hiraganaVal, hanvietVal, meaningVal);
+      
+      // reset form
+      e.target.reset();
+    });
+  }
   
   // Table Manager triggers
-  document.getElementById("btn-clear-all").addEventListener("click", clearAllVocab);
-  document.getElementById("btn-load-preset").addEventListener("click", loadPresetVocabulary);
+  const btnClearAll = document.getElementById("btn-clear-all");
+  const btnLoadPreset = document.getElementById("btn-load-preset");
   const btnExportDb = document.getElementById("btn-export-db");
+
+  if (btnClearAll) btnClearAll.addEventListener("click", clearAllVocab);
+  if (btnLoadPreset) btnLoadPreset.addEventListener("click", loadPresetVocabulary);
   if (btnExportDb) btnExportDb.addEventListener("click", exportDatabase);
   
   // Table dynamic search input
-  document.getElementById("vocab-search-input").addEventListener("input", renderVocabTable);
+  if (DOM.vocabSearchInput) {
+    DOM.vocabSearchInput.addEventListener("input", renderVocabTable);
+  }
   
   // Voice select change
-  document.getElementById("voice-select").addEventListener("change", () => {
-    showToast("Đã thay đổi giọng nói tiếng Nhật!", "info");
-  });
+  if (DOM.voiceSelect) {
+    DOM.voiceSelect.addEventListener("change", () => {
+      showToast("Đã thay đổi giọng nói tiếng Nhật!", "info");
+    });
+  }
   
   // Player chapter filter select change
-  const playerChapterSelect = document.getElementById("player-chapter-select");
+  const playerChapterSelect = DOM.playerChapterSelect;
   if (playerChapterSelect) {
     playerChapterSelect.addEventListener("change", (e) => {
       activeChapterFilter = e.target.value;
@@ -1174,6 +1426,17 @@ function bindEvents() {
       
       const label = activeChapterFilter === "all" ? "Tất cả các chương" : activeChapterFilter;
       showToast(`Đang học: ${label}`, "success");
+    });
+  }
+
+  // EVENT DELEGATION: Bind vocabulary row deletion click centrally on the table body
+  if (DOM.vocabTableBody) {
+    DOM.vocabTableBody.addEventListener("click", (e) => {
+      const deleteBtn = e.target.closest(".btn-row-delete");
+      if (deleteBtn) {
+        const idx = parseInt(deleteBtn.getAttribute("data-index"));
+        deleteWord(idx);
+      }
     });
   }
 }

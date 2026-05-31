@@ -166,13 +166,13 @@ function updateGlobalStats() {
   updateRatioIndicator();
 }
 
-function updateRatioIndicator() {
+function updateRatioIndicator(list) {
   const ratioEl = document.getElementById("player-progress-ratio");
-  const list = getFilteredVocabList();
-  if (list.length === 0) {
+  const targetList = list || getFilteredVocabList();
+  if (targetList.length === 0) {
     ratioEl.textContent = "0 / 0 từ";
   } else {
-    ratioEl.textContent = `${currentIndex + 1} / ${list.length} từ`;
+    ratioEl.textContent = `${currentIndex + 1} / ${targetList.length} từ`;
   }
 }
 
@@ -236,14 +236,18 @@ function resumeTimerAnimation() {
   
   const progressBar = document.getElementById("card-progress-bar");
   
-  // Reset and trigger initial smooth CSS transition
+  // Animate progress bar using GPU-bound Web Animations API
   if (progressBar) {
-    progressBar.style.transformOrigin = "left";
-    progressBar.style.transition = "none";
-    progressBar.style.transform = "scaleX(0)";
-    requestAnimationFrame(() => {
-      progressBar.style.transition = `transform ${playSpeed}ms linear`;
-      progressBar.style.transform = "scaleX(1)";
+    if (progressBar.activeAnimation) {
+      progressBar.activeAnimation.cancel();
+    }
+    progressBar.activeAnimation = progressBar.animate([
+      { transform: "scaleX(0)" },
+      { transform: "scaleX(1)" }
+    ], {
+      duration: playSpeed,
+      easing: "linear",
+      fill: "forwards"
     });
   }
   
@@ -251,15 +255,19 @@ function resumeTimerAnimation() {
     const list = getFilteredVocabList();
     if (!isPlaying || list.length === 0) return;
     
-    showNextWord();
+    showNextWord(list);
     
-    // Smooth transition reset and scale on each tick
     if (progressBar) {
-      progressBar.style.transition = "none";
-      progressBar.style.transform = "scaleX(0)";
-      requestAnimationFrame(() => {
-        progressBar.style.transition = `transform ${playSpeed}ms linear`;
-        progressBar.style.transform = "scaleX(1)";
+      if (progressBar.activeAnimation) {
+        progressBar.activeAnimation.cancel();
+      }
+      progressBar.activeAnimation = progressBar.animate([
+        { transform: "scaleX(0)" },
+        { transform: "scaleX(1)" }
+      ], {
+        duration: playSpeed,
+        easing: "linear",
+        fill: "forwards"
       });
     }
     
@@ -276,9 +284,8 @@ function pauseTimerAnimation() {
   }
   
   const progressBar = document.getElementById("card-progress-bar");
-  if (progressBar) {
-    progressBar.style.transition = "none";
-    progressBar.style.transform = "scaleX(0)";
+  if (progressBar && progressBar.activeAnimation) {
+    progressBar.activeAnimation.pause(); // Pause smoothly in place
   }
 }
 
@@ -286,17 +293,17 @@ function pauseTimerAnimation() {
 // 4. DISPLAY WORD CONTROLLER
 // ==========================================================================
 
-function showNextWord() {
-  const list = getFilteredVocabList();
-  if (list.length === 0) return;
+function showNextWord(list) {
+  const targetList = list || getFilteredVocabList();
+  if (targetList.length === 0) return;
   
-  selectNextWordIndex();
-  displayCurrentWord();
+  selectNextWordIndex(targetList);
+  displayCurrentWord(targetList);
 }
 
-function showPrevWord() {
-  const list = getFilteredVocabList();
-  if (list.length === 0) return;
+function showPrevWord(list) {
+  const targetList = list || getFilteredVocabList();
+  if (targetList.length === 0) return;
   
   if (historyStack.length > 1 && historyIndex > 0) {
     // Step back in current session history
@@ -305,16 +312,15 @@ function showPrevWord() {
   } else {
     // Subtract sequence index
     currentIndex = currentIndex - 1;
-    if (currentIndex < 0) currentIndex = list.length - 1;
+    if (currentIndex < 0) currentIndex = targetList.length - 1;
   }
   
-  progressAccumulated = 0; // reset progress bar timer
-  displayCurrentWord();
+  displayCurrentWord(targetList);
 }
 
-function selectNextWordIndex() {
-  const list = getFilteredVocabList();
-  if (list.length === 0) return;
+function selectNextWordIndex(list) {
+  const targetList = list || getFilteredVocabList();
+  if (targetList.length === 0) return;
   
   // If we are navigating the history stack and reached the end
   if (historyIndex < historyStack.length - 1) {
@@ -326,16 +332,16 @@ function selectNextWordIndex() {
   let nextIdx = 0;
   if (isRandom) {
     // Generate a random number different from the current if list length > 1
-    if (list.length > 1) {
+    if (targetList.length > 1) {
       do {
-        nextIdx = Math.floor(Math.random() * list.length);
+        nextIdx = Math.floor(Math.random() * targetList.length);
       } while (nextIdx === currentIndex);
     } else {
       nextIdx = 0;
     }
   } else {
     nextIdx = currentIndex + 1;
-    if (nextIdx >= list.length) {
+    if (nextIdx >= targetList.length) {
       nextIdx = 0;
     }
   }
@@ -350,25 +356,30 @@ function selectNextWordIndex() {
   historyIndex = historyStack.length - 1;
 }
 
-function displayCurrentWord() {
-  const list = getFilteredVocabList();
-  if (list.length === 0) {
+function displayCurrentWord(list) {
+  const targetList = list || getFilteredVocabList();
+  if (targetList.length === 0) {
     updatePlayerPlaceholder();
     return;
   }
   
   // Safety check if index out of bounds
-  if (currentIndex < 0 || currentIndex >= list.length) {
+  if (currentIndex < 0 || currentIndex >= targetList.length) {
     currentIndex = 0;
   }
   
-  const word = list[currentIndex];
+  const word = targetList[currentIndex];
   const cardEl = document.getElementById("vocab-card");
   
-  // Trigger card refresh pulse micro-animation
-  cardEl.classList.remove("change-word");
-  void cardEl.offsetWidth; // trigger reflow
-  cardEl.classList.add("change-word");
+  // Trigger card refresh pulse micro-animation using double requestAnimationFrame to avoid synchronous reflows!
+  if (cardEl) {
+    cardEl.classList.remove("change-word");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        cardEl.classList.add("change-word");
+      });
+    });
+  }
   
   // Write contents
   document.getElementById("card-hiragana").textContent = word.hiragana || "Cách đọc";
@@ -383,7 +394,7 @@ function displayCurrentWord() {
     hanvietEl.style.display = "none";
   }
   
-  updateRatioIndicator();
+  updateRatioIndicator(targetList);
   
   // Auto speech synthesis read-out if enabled
   if (autoTTS) {
@@ -396,7 +407,14 @@ function updatePlayerPlaceholder() {
   document.getElementById("card-kanji").textContent = "Trống";
   document.getElementById("card-meaning").textContent = "Hãy thêm danh sách từ vựng từ Excel hoặc nhập thủ công để bắt đầu học nhé!";
   document.getElementById("card-hanviet").style.display = "none";
-  document.getElementById("card-progress-bar").style.transform = "scaleX(0)";
+  
+  const progressBar = document.getElementById("card-progress-bar");
+  if (progressBar) {
+    if (progressBar.activeAnimation) {
+      progressBar.activeAnimation.cancel();
+    }
+    progressBar.style.transform = "scaleX(0)";
+  }
 }
 
 // ==========================================================================

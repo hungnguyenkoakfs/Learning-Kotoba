@@ -24,6 +24,7 @@ let isPlaying = true;
 let playSpeed = 1000; // default 1000ms (1 second)
 let isRandom = true;
 let autoTTS = false;
+let progressAccumulated = 0; // Khai báo ngăn rò rỉ biến toàn cục
 
 // Animation timer variables
 let progressAnimId = null;
@@ -181,7 +182,7 @@ function cacheDOMElements() {
 // ==========================================================================
 
 const DB_NAME = "KotobaBoosterDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3; // Nâng lên phiên bản 3 để tạo chỉ mục
 const CAT_STORE = "categories";
 const VOCAB_STORE = "vocab_bank";
 
@@ -205,6 +206,11 @@ function initDB() {
         resolve(e.target.result);
       };
       
+      request.onblocked = (e) => {
+        console.warn("IndexedDB open blocked! Please close other tabs running Kotoba Booster.", e);
+        resolve(null);
+      };
+      
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         
@@ -213,12 +219,26 @@ function initDB() {
           db.deleteObjectStore("vocabulary");
         }
         
+        let catStore;
         if (!db.objectStoreNames.contains(CAT_STORE)) {
-          db.createObjectStore(CAT_STORE, { keyPath: "id", autoIncrement: true });
+          catStore = db.createObjectStore(CAT_STORE, { keyPath: "id", autoIncrement: true });
+        } else {
+          catStore = e.currentTarget.transaction.objectStore(CAT_STORE);
         }
         
+        let vocabStore;
         if (!db.objectStoreNames.contains(VOCAB_STORE)) {
-          db.createObjectStore(VOCAB_STORE, { keyPath: "id", autoIncrement: true });
+          vocabStore = db.createObjectStore(VOCAB_STORE, { keyPath: "id", autoIncrement: true });
+        } else {
+          vocabStore = e.currentTarget.transaction.objectStore(VOCAB_STORE);
+        }
+        
+        // Tạo chỉ mục cho từ vựng an toàn
+        if (!vocabStore.indexNames.contains("categoryIds")) {
+          vocabStore.createIndex("categoryIds", "categoryIds", { unique: false, multiEntry: true });
+        }
+        if (!vocabStore.indexNames.contains("source")) {
+          vocabStore.createIndex("source", "source", { unique: false });
         }
       };
     } catch (e) {
@@ -308,6 +328,130 @@ async function saveDatabaseToDB(categories, vocab) {
       transaction.onerror = () => resolve(false);
     } catch (err) {
       console.error("IndexedDB write transaction failed", err);
+      resolve(false);
+    }
+  });
+}
+
+// ==========================================================================
+// HÀM LƯU TRỮ GIA TĂNG HIỆU NĂNG CAO (INCREMENTAL INDEXEDDB HELPERS)
+// ==========================================================================
+
+async function saveWordToDB(word, isNew = false) {
+  try {
+    localStorage.setItem("kotoba_vocab_bank", JSON.stringify(vocabList));
+  } catch (lsError) {
+    console.warn("LocalStorage backup quota exceeded", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return false;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([VOCAB_STORE], "readwrite");
+      const store = transaction.objectStore(VOCAB_STORE);
+      const request = isNew ? store.add(word) : store.put(word);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB saveWordToDB failed", err);
+      resolve(false);
+    }
+  });
+}
+
+async function deleteWordFromDB(wordId) {
+  try {
+    localStorage.setItem("kotoba_vocab_bank", JSON.stringify(vocabList));
+  } catch (lsError) {
+    console.warn("LocalStorage backup quota exceeded", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return false;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([VOCAB_STORE], "readwrite");
+      const store = transaction.objectStore(VOCAB_STORE);
+      const request = store.delete(wordId);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB deleteWordFromDB failed", err);
+      resolve(false);
+    }
+  });
+}
+
+async function bulkDeleteWordsFromDB(wordIds) {
+  try {
+    localStorage.setItem("kotoba_vocab_bank", JSON.stringify(vocabList));
+  } catch (lsError) {
+    console.warn("LocalStorage backup quota exceeded", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return false;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([VOCAB_STORE], "readwrite");
+      const store = transaction.objectStore(VOCAB_STORE);
+      wordIds.forEach(id => store.delete(id));
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB bulkDeleteWordsFromDB failed", err);
+      resolve(false);
+    }
+  });
+}
+
+async function saveCategoryToDB(cat, isNew = false) {
+  try {
+    localStorage.setItem("kotoba_categories", JSON.stringify(categoriesList));
+  } catch (lsError) {
+    console.warn("LocalStorage backup quota exceeded", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return false;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([CAT_STORE], "readwrite");
+      const store = transaction.objectStore(CAT_STORE);
+      const request = isNew ? store.add(cat) : store.put(cat);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB saveCategoryToDB failed", err);
+      resolve(false);
+    }
+  });
+}
+
+async function deleteCategoryFromDB(catId) {
+  try {
+    localStorage.setItem("kotoba_categories", JSON.stringify(categoriesList));
+  } catch (lsError) {
+    console.warn("LocalStorage backup quota exceeded", lsError);
+  }
+  
+  const db = await initDB();
+  if (!db) return false;
+  
+  return new Promise((resolve) => {
+    try {
+      const transaction = db.transaction([CAT_STORE], "readwrite");
+      const store = transaction.objectStore(CAT_STORE);
+      const request = store.delete(catId);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    } catch (err) {
+      console.error("IndexedDB deleteCategoryFromDB failed", err);
       resolve(false);
     }
   });
@@ -430,8 +574,11 @@ async function loadVocabList() {
   categoriesList = dbData.categories || [];
   vocabList = dbData.vocab || [];
   
-  // Seed default N5-N4 preset if completely empty
-  if (categoriesList.length === 0 && vocabList.length === 0) {
+  // Explicit First-Time Seeding Flag in localStorage (safe deduplication against IndexedDB data)
+  const isInitialized = localStorage.getItem("kotoba_database_initialized") || (categoriesList.length > 0 || vocabList.length > 0);
+  
+  // Seed default N5-N4 preset on very first startup only when DB is completely empty
+  if (!isInitialized && categoriesList.length === 0 && vocabList.length === 0) {
     categoriesList = [
       { id: 1, name: "Từ vựng mẫu N5-N4", parentId: null },
       { id: 2, name: "Chương 1: Khởi động", parentId: 1 },
@@ -453,6 +600,8 @@ async function loadVocabList() {
     });
     
     await saveVocabList();
+    localStorage.setItem("kotoba_database_initialized", "true");
+    console.log("[Kotoba Booster] Seeded default preset vocabulary on very first startup.");
   }
   
   // Backwards compatibility migration check
@@ -662,7 +811,7 @@ async function addNewCategory(name, parentId = null) {
     parentId: parentId
   };
   categoriesList.push(newCat);
-  await saveVocabList();
+  await saveCategoryToDB(newCat, true);
   renderManagerTree();
   renderPlayerPlaylistTree();
   showToast(`Đã tạo thư mục "${name}"!`, "success");
@@ -1192,14 +1341,19 @@ function downloadExcelTemplate() {
 // 7. VOCABULARY CRUD MANAGEMENT (MANAGER PANEL)
 // ==========================================================================
 
-function renderVocabTable() {
+let vocabTableLimit = 100;
+
+function renderVocabTable(loadMore = false) {
   const tbody = DOM.vocabTableBody;
   const placeholder = DOM.noWordsPlaceholder;
   const searchInput = DOM.vocabSearchInput;
   if (!tbody || !placeholder || !searchInput) return;
   
+  if (!loadMore) {
+    vocabTableLimit = 100;
+  }
+  
   const filterText = searchInput.value.trim().toLowerCase();
-  tbody.innerHTML = "";
   
   // Filter by category selection
   let list = vocabList;
@@ -1230,32 +1384,59 @@ function renderVocabTable() {
   }
   
   if (filteredList.length === 0) {
+    tbody.innerHTML = "";
     placeholder.style.display = "flex";
   } else {
     placeholder.style.display = "none";
     
-    filteredList.forEach((word) => {
-      const tr = document.createElement("tr");
-      tr.setAttribute("data-id", word.id);
-      
-      tr.innerHTML = `
-        <td class="checkbox-col">
-          <input type="checkbox" class="row-selector" data-id="${word.id}">
-        </td>
-        <td class="editable-cell" data-field="kanji" style="font-weight: 600; font-family: var(--font-jp);">${word.kanji}</td>
-        <td class="editable-cell" data-field="hiragana" style="font-family: var(--font-jp);">${word.hiragana || '<span style="opacity:0.3">-</span>'}</td>
-        <td class="editable-cell" data-field="hanviet">${word.hanviet ? `<span class="hanviet-badge" style="font-size: 0.75rem; padding: 2px 8px;">${word.hanviet}</span>` : '<span style="opacity:0.3">-</span>'}</td>
-        <td class="editable-cell" data-field="meaning">${word.meaning}</td>
-        <td class="text-center">
-          <div class="row-actions">
-            <button class="btn-row-action btn-row-delete" data-id="${word.id}" title="Xóa vĩnh viễn khỏi toàn hệ thống">
-              <i data-lucide="trash"></i>
-            </button>
-          </div>
-        </td>
+    // Slice list to limit
+    const itemsToRender = filteredList.slice(0, vocabTableLimit);
+    
+    let html = "";
+    itemsToRender.forEach((word) => {
+      html += `
+        <tr data-id="${word.id}">
+          <td class="checkbox-col">
+            <input type="checkbox" class="row-selector" data-id="${word.id}">
+          </td>
+          <td class="editable-cell" data-field="kanji" style="font-weight: 600; font-family: var(--font-jp);">${word.kanji}</td>
+          <td class="editable-cell" data-field="hiragana" style="font-family: var(--font-jp);">${word.hiragana || '<span style="opacity:0.3">-</span>'}</td>
+          <td class="editable-cell" data-field="hanviet">${word.hanviet ? `<span class="hanviet-badge" style="font-size: 0.75rem; padding: 2px 8px;">${word.hanviet}</span>` : '<span style="opacity:0.3">-</span>'}</td>
+          <td class="editable-cell" data-field="meaning">${word.meaning}</td>
+          <td class="text-center">
+            <div class="row-actions">
+              <button class="btn-row-action btn-row-delete" data-id="${word.id}" title="Xóa vĩnh viễn khỏi toàn hệ thống">
+                <i data-lucide="trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
       `;
-      tbody.appendChild(tr);
     });
+    
+    // If there are more items, add a Load More row
+    if (filteredList.length > vocabTableLimit) {
+      html += `
+        <tr id="load-more-row" style="background: transparent;">
+          <td colspan="6" style="text-align: center; padding: 15px;">
+            <button id="btn-load-more" class="btn-load-more" style="background: var(--primary); color: #fff; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              Xem thêm (còn ${filteredList.length - vocabTableLimit} từ)...
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+    
+    tbody.innerHTML = html;
+    
+    // Bind click event to load more button
+    const btnLoadMore = document.getElementById("btn-load-more");
+    if (btnLoadMore) {
+      btnLoadMore.addEventListener("click", () => {
+        vocabTableLimit += 100;
+        renderVocabTable(true);
+      });
+    }
     
     // Refresh Lucide Icons for table trash icons
     lucide.createIcons();
@@ -1291,7 +1472,11 @@ function bindInlineEditListeners() {
       cell.appendChild(input);
       input.focus();
       
+      let committed = false;
       async function commitEdit() {
+        if (committed) return;
+        committed = true;
+        
         const newVal = input.value.trim();
         if (newVal === "") {
           cell.innerHTML = field === "hanviet" && rawVal ? `<span class="hanviet-badge" style="font-size: 0.75rem; padding: 2px 8px;">${rawVal}</span>` : (rawVal || '<span style="opacity:0.3">-</span>');
@@ -1304,7 +1489,7 @@ function bindInlineEditListeners() {
           word[field] = newVal;
         }
         
-        await saveVocabList();
+        await saveWordToDB(word, false);
         
         if (field === "hanviet") {
           cell.innerHTML = `<span class="hanviet-badge" style="font-size: 0.75rem; padding: 2px 8px;">${word[field]}</span>`;
@@ -1354,7 +1539,7 @@ async function addWordToCurrentCategory(kanji, hiragana, hanviet, meaning, tags 
   };
   
   vocabList.push(newWord);
-  await saveVocabList();
+  await saveWordToDB(newWord, true);
   updateGlobalStats();
   compilePlaylist();
   renderVocabTable();
@@ -1369,7 +1554,7 @@ async function deleteWordPermanently(wordId) {
   
   if (confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn từ "${word.kanji}" khỏi hệ thống?`)) {
     vocabList = vocabList.filter(w => w.id !== wordId);
-    await saveVocabList();
+    await deleteWordFromDB(wordId);
     updateGlobalStats();
     compilePlaylist();
     renderVocabTable();
@@ -1398,7 +1583,7 @@ async function removeWordFromActiveCategory(wordId) {
   if (!word) return;
   
   word.categoryIds = word.categoryIds.filter(id => id !== currentSelectedCategoryId);
-  await saveVocabList();
+  await saveWordToDB(word, false);
   
   compilePlaylist();
   renderVocabTable();
@@ -1425,7 +1610,7 @@ async function handleBulkDeletePermanent() {
   
   if (confirm(`Bạn có chắc chắn muốn xóa VĨNH VIỄN ${ids.length} từ đã chọn khỏi hệ thống không?`)) {
     vocabList = vocabList.filter(w => !ids.includes(w.id));
-    await saveVocabList();
+    await bulkDeleteWordsFromDB(ids);
     updateGlobalStats();
     compilePlaylist();
     renderVocabTable();
@@ -1543,6 +1728,7 @@ function importDatabaseFromJSON(file) {
         vocabList = [...data.vocab];
         
         await saveVocabList();
+        localStorage.setItem("kotoba_database_initialized", "true");
         updateGlobalStats();
         
         // Render tree and playlist
@@ -2128,10 +2314,18 @@ function handleExcelUpload(file) {
       if (hanvietIdx === -1) hanvietIdx = 2;
       if (meaningIdx === -1) meaningIdx = 3;
       
-      // Auto-create category for uploaded excel file
-      const excelCatId = Date.now();
+      // Auto-create or reuse category for uploaded excel file
       const excelCatName = "Excel: " + file.name.replace(/\.[^/.]+$/, "");
-      categoriesList.push({ id: excelCatId, name: excelCatName, parentId: null });
+      let excelCat = categoriesList.find(c => c.name === excelCatName && c.parentId === null);
+      let excelCatId;
+      if (excelCat) {
+        excelCatId = excelCat.id;
+        // Xóa các từ vựng cũ thuộc danh mục này để tránh bị trùng lặp dữ liệu
+        vocabList = vocabList.filter(word => !word.categoryIds || !word.categoryIds.includes(excelCatId));
+      } else {
+        excelCatId = Date.now();
+        categoriesList.push({ id: excelCatId, name: excelCatName, parentId: null });
+      }
       
       const importedWords = [];
       for (let r = 1; r < rows.length; r++) {
@@ -2492,10 +2686,22 @@ async function importSelectedPDFChapters() {
     return;
   }
   
-  // Create Parent Category for PDF file name
-  const parentPdfId = Date.now();
+  // Create or reuse Parent Category for PDF file name
   const pdfInput = document.getElementById("pdf-file-input");
   const parentPdfName = "PDF: " + (pdfInput.files[0]?.name.replace(/\.[^/.]+$/, "") || "Nhập từ PDF");
+  
+  let parentPdf = categoriesList.find(c => c.name === parentPdfName && c.parentId === null);
+  let parentPdfId;
+  if (parentPdf) {
+    parentPdfId = parentPdf.id;
+    // Clean old children subcategories and their words to prevent duplicate/stacked data
+    const childrenIds = categoriesList.filter(c => c.parentId === parentPdfId).map(c => c.id);
+    vocabList = vocabList.filter(word => !word.categoryIds || !word.categoryIds.some(id => childrenIds.includes(id) || id === parentPdfId));
+    categoriesList = categoriesList.filter(c => c.id !== parentPdfId && !childrenIds.includes(c.id));
+  } else {
+    parentPdfId = Date.now();
+  }
+  
   categoriesList.push({ id: parentPdfId, name: parentPdfName, parentId: null });
   
   let importedWordsCount = 0;

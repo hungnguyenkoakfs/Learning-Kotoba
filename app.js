@@ -232,39 +232,54 @@ function populateChapterDropdown() {
 // ==========================================================================
 
 function resumeTimerAnimation() {
-  cancelAnimationFrame(progressAnimId);
-  lastTickTime = Date.now();
+  pauseTimerAnimation();
   
-  function step() {
+  const progressBar = document.getElementById("card-progress-bar");
+  
+  // Reset and trigger initial smooth CSS transition
+  if (progressBar) {
+    progressBar.style.transformOrigin = "left";
+    progressBar.style.transition = "none";
+    progressBar.style.transform = "scaleX(0)";
+    requestAnimationFrame(() => {
+      progressBar.style.transition = `transform ${playSpeed}ms linear`;
+      progressBar.style.transform = "scaleX(1)";
+    });
+  }
+  
+  function tick() {
     const list = getFilteredVocabList();
     if (!isPlaying || list.length === 0) return;
     
-    const now = Date.now();
-    const delta = now - lastTickTime;
-    lastTickTime = now;
+    showNextWord();
     
-    progressAccumulated += delta;
-    
-    // Check if the timer speed duration has elapsed
-    if (progressAccumulated >= playSpeed) {
-      progressAccumulated = 0;
-      showNextWord();
+    // Smooth transition reset and scale on each tick
+    if (progressBar) {
+      progressBar.style.transition = "none";
+      progressBar.style.transform = "scaleX(0)";
+      requestAnimationFrame(() => {
+        progressBar.style.transition = `transform ${playSpeed}ms linear`;
+        progressBar.style.transform = "scaleX(1)";
+      });
     }
     
-    // Scale percentage to render on the progress bar using hardware-accelerated transform
-    const percentage = Math.min((progressAccumulated / playSpeed) * 100, 100);
-    const progressBar = document.getElementById("card-progress-bar");
-    progressBar.style.transformOrigin = "left";
-    progressBar.style.transform = `scaleX(${percentage / 100})`;
-    
-    progressAnimId = requestAnimationFrame(step);
+    progressAnimId = setTimeout(tick, playSpeed);
   }
   
-  progressAnimId = requestAnimationFrame(step);
+  progressAnimId = setTimeout(tick, playSpeed);
 }
 
 function pauseTimerAnimation() {
-  cancelAnimationFrame(progressAnimId);
+  if (progressAnimId) {
+    clearTimeout(progressAnimId);
+    progressAnimId = null;
+  }
+  
+  const progressBar = document.getElementById("card-progress-bar");
+  if (progressBar) {
+    progressBar.style.transition = "none";
+    progressBar.style.transform = "scaleX(0)";
+  }
 }
 
 // ==========================================================================
@@ -996,10 +1011,16 @@ function bindEvents() {
   document.getElementById("btn-next").addEventListener("click", () => {
     progressAccumulated = 0;
     showNextWord();
+    if (isPlaying) {
+      resumeTimerAnimation();
+    }
   });
   
   document.getElementById("btn-prev").addEventListener("click", () => {
     showPrevWord();
+    if (isPlaying) {
+      resumeTimerAnimation();
+    }
   });
   
   // Random / Sequence Toggle
@@ -1045,14 +1066,19 @@ function bindEvents() {
   const speedRange = document.getElementById("speed-range");
   const speedValue = document.getElementById("speed-value");
   
-  speedRange.addEventListener("input", (e) => {
-    const val = parseFloat(e.target.value);
-    speedValue.textContent = val.toFixed(1);
-    playSpeed = val * 1000;
-    
-    // Scale timer remaining calculations
-    progressAccumulated = 0; 
-  });
+  if (speedRange && speedValue) {
+    speedRange.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value);
+      speedValue.textContent = val.toFixed(1);
+      playSpeed = val * 1000;
+      
+      // Scale timer remaining calculations
+      progressAccumulated = 0; 
+      if (isPlaying) {
+        resumeTimerAnimation();
+      }
+    });
+  }
   
   // Excel File drag-and-drop
   const dropZone = document.getElementById("excel-drop-zone");

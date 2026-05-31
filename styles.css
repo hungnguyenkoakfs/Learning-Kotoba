@@ -298,9 +298,12 @@ body {
 
 .progress-bar {
   height: 100%;
-  width: 0%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
   background: linear-gradient(to right, hsl(var(--cyan)), hsl(var(--purple)));
   box-shadow: 0 0 8px hsl(var(--cyan));
+  will-change: transform;
 }
 
 /* Speak Floating Button */
@@ -1561,7 +1564,312 @@ body {
   padding-bottom: 12px;
 }
 
-/* Extra media queries for PDF importing layout */
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE STYLING (FIT FOR BOTH MOBILE & DESKTOP)
+   ========================================================================== */
+
+/* Enable scrollable table containers for all tables on small screens */
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  /* Container padding */
+  .app-container {
+    padding: 12px;
+  }
+
+  /* Header adjustments */
+  .app-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+
+  .logo-area {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .logo-icon i {
+    width: 20px;
+    height: 20px;
+  }
+
+  .logo-text h1 {
+    font-size: 1.25rem;
+    letter-spacing: 1px;
+  }
+
+  .logo-text p {
+    font-size: 0.75rem;
+  }
+
+  /* Header controls stacking */
+  .header-controls {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  /* Badges */
+  .stat-badge {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  #chapter-filter-container {
+    width: 100%;
+  }
+
+  .chapter-dropdown {
+    max-width: none;
+    text-align: center;
+    text-align-last: center;
+  }
+
+  /* View Navigation bar */
+  .view-navigation {
+    width: 100%;
+    display: flex;
+  }
+
+  .nav-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    gap: 6px;
+  }
+
+  .nav-btn i {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Flashcard player responsiveness */
+  .player-layout {
+    gap: 16px;
+    padding: 10px 0;
+  }
+
+  .card-container {
+    padding: 24px 16px;
+    border-radius: 20px;
+  }
+
+  .speak-circle-btn {
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .speak-circle-btn i {
+    width: 16px;
+    height: 16px;
+  }
+
+  .vocab-card {
+    min-height: 250px;
+    padding: 10px 0;
+  }
+
+  /* Perfect dynamic font scaling for Kanji, Hiragana and Translation */
+  .hiragana-text {
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .kanji-text {
+    font-size: clamp(2.8rem, 12vw, 4.5rem);
+    margin: 10px 0;
+    letter-spacing: 2px;
+    line-height: 1.2;
+  }
+
+  .card-divider {
+    margin: 20px auto;
+    width: 80%;
+  }
+
+  .hanviet-badge {
+    font-size: 0.85rem;
+    padding: 4px 16px;
+  }
+
+  .meaning-text {
+    font-size: clamp(1.3rem, 6vw, 1.7rem);
+    line-height: 1.3;
+    max-width: 100%;
+  }
+
+  /* Controls Panel responsiveness */
+  .player-controls-container {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .controls-status {
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .control-group {
+    width: 100%;
+    justify-content: center !important;
+  }
+
+  .speech-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .voice-selection-container {
+    width: 100%;
+  }
+
+  .voice-dropdown {
+    width: 100%;
+    text-align: center;
+    text-align-last: center;
+  }
+
+  .action-btn-toggle {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+
+  .playback-buttons {
+    order: -1; /* Place main play buttons at the top for excellent thumb access */
+    gap: 20px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn-play-pause {
+    width: 52px;
+    height: 52px;
+  }
+
+  .speed-slider-container {
+    padding-top: 8px;
+  }
+
+  .speed-label {
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+  }
+
+  /* Manager View & Grid */
+  .manager-subnav {
+    flex-direction: column;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  .subnav-btn {
+    width: 100%;
+    justify-content: center;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .manager-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .panel-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .panel-title {
+    font-size: 1rem;
+  }
+
+  /* Form layouts */
+  .vocab-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-row-2col {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Table Header actions */
+  .panel-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .vocab-table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .vocab-table-actions button {
+    flex: 1;
+    min-width: 100px;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+  }
+
+  /* PDF importing workspace on mobile */
+  .pdf-workspace-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .pdf-chapters-sidebar {
+    height: 160px;
+  }
+
+  .pdf-preview-panel {
+    height: auto;
+  }
+}
+
+/* Extra media queries for PDF importing layout on tablets */
 @media (max-width: 1200px) {
   .pdf-workspace-layout {
     grid-template-columns: 1fr;

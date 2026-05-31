@@ -1836,6 +1836,27 @@ function showToast(message, type = "info") {
   }, 4000);
 }
 
+function toggleZenMode() {
+  const container = document.querySelector(".app-container");
+  const btnZen = document.getElementById("btn-zen");
+  if (!container) return;
+  
+  const isZen = container.classList.toggle("zen-active");
+  if (btnZen) {
+    const icon = btnZen.querySelector("i");
+    if (isZen) {
+      btnZen.classList.add("active");
+      if (icon) icon.setAttribute("data-lucide", "eye");
+      showToast("Đã kích hoạt chế độ tập trung Zen Mode! Nhấn phím Z hoặc nút Zen Mode để thoát.", "success");
+    } else {
+      btnZen.classList.remove("active");
+      if (icon) icon.setAttribute("data-lucide", "eye-off");
+      showToast("Đã thoát chế độ tập trung.", "info");
+    }
+    lucide.createIcons();
+  }
+}
+
 // ==========================================================================
 // 9. EVENT LISTENERS BINDING
 // ==========================================================================
@@ -2071,6 +2092,59 @@ function bindEvents() {
       }
     });
   }
+
+  // Zen Mode Click Event
+  const btnZen = document.getElementById("btn-zen");
+  if (btnZen) {
+    btnZen.addEventListener("click", () => {
+      toggleZenMode();
+    });
+  }
+
+  // Global Keyboard Shortcuts
+  window.addEventListener("keydown", (e) => {
+    // Only capture shortcuts when NOT typing in an input or textarea
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName) || document.activeElement.classList.contains("inline-edit-input")) {
+      return;
+    }
+    
+    const activeSection = document.querySelector(".view-section.active");
+    if (!activeSection || activeSection.id !== "player-view") {
+      return;
+    }
+    
+    switch (e.code) {
+      case "Space":
+        e.preventDefault();
+        const btnPlay = document.getElementById("btn-play-pause");
+        if (btnPlay) btnPlay.click();
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        const btnNxt = document.getElementById("btn-next");
+        if (btnNxt) btnNxt.click();
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        const btnPrv = document.getElementById("btn-prev");
+        if (btnPrv) btnPrv.click();
+        break;
+      case "KeyV":
+        e.preventDefault();
+        const speakBtn = DOM.cardSpeakBtn;
+        if (speakBtn) speakBtn.click();
+        break;
+      case "KeyR":
+        e.preventDefault();
+        const btnRand = document.getElementById("btn-random");
+        if (btnRand) btnRand.click();
+        break;
+      case "KeyZ":
+        e.preventDefault();
+        toggleZenMode();
+        break;
+    }
+  });
   
   // Excel File drag-and-drop
   const dropZone = document.getElementById("excel-drop-zone");

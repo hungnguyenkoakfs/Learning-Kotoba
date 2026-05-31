@@ -2317,4 +2317,172 @@ body {
   color: #fff;
 }
 
+/* ==========================================================================
+   ZEN MODE & KEYBOARD SHORTCUTS PREMIUM DESIGN SYSTEMS
+   ========================================================================== */
+
+/* Sleek Keyboard Shortcuts Helper Bar */
+.keyboard-shortcuts-helper {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(13, 16, 28, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  padding: 8px 18px;
+  border-radius: 30px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  pointer-events: auto;
+  opacity: 0.85;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.keyboard-shortcuts-helper:hover {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+  border-color: rgba(0, 240, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 240, 255, 0.15);
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: hsl(var(--text-secondary));
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.shortcut-item kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: #fff;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .keyboard-shortcuts-helper {
+    display: none !important;
+  }
+}
+
+/* Zen Mode Activators */
+.app-container.zen-active {
+  padding: 12px 24px !important;
+  max-width: 900px !important;
+  justify-content: center !important;
+  margin: 0 auto !important;
+  min-height: 100vh !important;
+}
+
+.app-container.zen-active .app-header {
+  display: none !important;
+}
+
+.app-container.zen-active .app-footer {
+  display: none !important;
+}
+
+.app-container.zen-active #player-view {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.app-container.zen-active .player-layout {
+  padding: 0 !important;
+  max-width: 800px !important;
+  gap: 20px !important;
+  width: 100% !important;
+}
+
+/* Force side playlist builder to collapse completely in Zen Mode */
+.app-container.zen-active .player-workspace-row {
+  grid-template-columns: 1fr 0px !important;
+  gap: 0px !important;
+  width: 100% !important;
+}
+
+.app-container.zen-active .playlist-builder-panel {
+  transform: scaleX(0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0px !important;
+  padding: 0px !important;
+  margin: 0px !important;
+  border: none !important;
+}
+
+/* Hide UI toggles and speeds to maximize focus */
+.app-container.zen-active .btn-mini-toggle {
+  display: none !important;
+}
+
+.app-container.zen-active .speed-slider-container {
+  display: none !important;
+}
+
+/* Grand, immersive flashcard in Zen Mode */
+.app-container.zen-active .card-container {
+  padding: 60px 40px !important;
+  border-radius: 32px !important;
+  border-color: rgba(0, 240, 255, 0.25) !important;
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), 0 0 50px -10px rgba(0, 240, 255, 0.15) !important;
+  background: rgba(13, 16, 28, 0.65) !important;
+}
+
+.app-container.zen-active .kanji-text {
+  font-size: clamp(4rem, 15vw, 9rem) !important;
+  text-shadow: 0 0 35px rgba(255, 255, 255, 0.2), 0 0 20px rgba(0, 240, 255, 0.15) !important;
+}
+
+.app-container.zen-active .meaning-text {
+  font-size: clamp(1.8rem, 6vw, 2.8rem) !important;
+}
+
+/* Focus and hover micro-animations on grid and buttons */
+.vocab-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.vocab-table tbody tr:hover {
+  background: rgba(0, 240, 255, 0.02) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--cyan));
+}
+
+.action-btn-toggle {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn-toggle.active {
+  animation: accentPulse 2s infinite alternate;
+}
+
+@keyframes accentPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+  }
+}
+
+
 

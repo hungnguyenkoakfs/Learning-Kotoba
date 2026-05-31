@@ -197,10 +197,14 @@
               </div>
 
               <!-- Extra options -->
-              <div class="control-group extra-controls">
-                <button id="btn-random" class="action-btn-toggle active" title="Hiển thị ngẫu nhiên">
+              <div class="control-group extra-controls" style="gap: 8px;">
+                <button id="btn-random" class="action-btn-toggle active" title="Hiển thị ngẫu nhiên (Phím R)">
                   <i data-lucide="shuffle"></i>
                   <span>Ngẫu nhiên</span>
+                </button>
+                <button id="btn-zen" class="action-btn-toggle" title="Chế độ tập trung Zen Mode (Phím Z)">
+                  <i data-lucide="eye-off"></i>
+                  <span>Zen Mode</span>
                 </button>
               </div>
             </div>
@@ -576,6 +580,16 @@
 
   <!-- Notification Toast Container -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- Sleek Keyboard Shortcuts Helper Bar -->
+  <div class="keyboard-shortcuts-helper">
+    <span class="shortcut-item"><kbd>Space</kbd> Tạm dừng/Phát</span>
+    <span class="shortcut-item"><kbd>←</kbd> Từ trước</span>
+    <span class="shortcut-item"><kbd>→</kbd> Từ sau</span>
+    <span class="shortcut-item"><kbd>V</kbd> Phát âm</span>
+    <span class="shortcut-item"><kbd>R</kbd> Ngẫu nhiên</span>
+    <span class="shortcut-item"><kbd>Z</kbd> Zen Mode</span>
+  </div>
 
   <!-- Lucide Icon Initialization -->
   <script>

@@ -84,30 +84,76 @@
       <!-- VIEW 1: PLAYER VIEW -->
       <section id="player-view" class="view-section active">
         <div class="player-layout">
-          <!-- Main Flashcard -->
-          <div class="card-container">
-            <!-- Progress Line Indicator -->
-            <div class="progress-bar-container">
-              <div id="card-progress-bar" class="progress-bar"></div>
-            </div>
-            
-            <div id="vocab-card" class="vocab-card">
-              <!-- TTS Read Indicator -->
-              <button id="card-speak-btn" class="speak-circle-btn" title="Nghe phát âm">
-                <i data-lucide="volume-2"></i>
-              </button>
+          <!-- Main Flashcard & Sidebar Container -->
+          <div id="player-workspace" class="player-workspace-row">
+            <!-- Main Flashcard -->
+            <div class="card-container" style="width: 100%; margin: 0;">
+              <!-- Progress Line Indicator -->
+              <div class="progress-bar-container">
+                <div id="card-progress-bar" class="progress-bar"></div>
+              </div>
               
-              <!-- Card Content -->
-              <div class="card-content-inner">
-                <div id="card-hiragana" class="hiragana-text">読み方</div>
-                <div id="card-kanji" class="kanji-text">漢字</div>
-                <div class="card-divider"></div>
+              <div id="vocab-card" class="vocab-card">
+                <!-- TTS Read Indicator -->
+                <button id="card-speak-btn" class="speak-circle-btn" title="Nghe phát âm">
+                  <i data-lucide="volume-2"></i>
+                </button>
                 
-                <div class="card-translation-area">
-                  <div id="card-hanviet" class="hanviet-badge">ÂM HÁN VIỆT</div>
-                  <div id="card-meaning" class="meaning-text">Nghĩa tiếng Việt của từ vựng</div>
+                <!-- Card Content -->
+                <div class="card-content-inner">
+                  <div id="card-hiragana" class="hiragana-text">読み方</div>
+                  <div id="card-kanji" class="kanji-text">漢字</div>
+                  <div class="card-divider"></div>
+                  
+                  <div class="card-translation-area">
+                    <div id="card-hanviet" class="hanviet-badge">ÂM HÁN VIỆT</div>
+                    <div id="card-meaning" class="meaning-text">Nghĩa tiếng Việt của từ vựng</div>
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Playlist Builder Panel (Side Card) -->
+            <div class="glass-card playlist-builder-panel">
+              <h3 style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin: 0 0 10px 0;">
+                <i data-lucide="list-music" style="color: hsl(var(--cyan)); width: 16px; height: 16px;"></i> Thiết lập Playlist Học
+              </h3>
+              
+              <div id="player-playlist-tree" class="playlist-tree-container" style="flex: 1;">
+                <!-- Checked Category Tree loads dynamically here -->
+              </div>
+              
+              <!-- Filters by Source & Tag -->
+              <div class="playlist-filter-bar" style="margin-top: 10px;">
+                <label class="filter-checkbox-row" title="Từ vựng mẫu N5-N4">
+                  <input type="checkbox" id="filter-source-preset" checked>
+                  <span>Chương mẫu</span>
+                </label>
+                <label class="filter-checkbox-row" title="Từ vựng nạp từ PDF N3">
+                  <input type="checkbox" id="filter-source-pdf" checked>
+                  <span>Từ nạp PDF</span>
+                </label>
+                <label class="filter-checkbox-row" title="Từ nạp từ Excel">
+                  <input type="checkbox" id="filter-source-excel" checked>
+                  <span>Từ Excel</span>
+                </label>
+                <label class="filter-checkbox-row" title="Từ nhập thủ công">
+                  <input type="checkbox" id="filter-source-manual" checked>
+                  <span>Nhập tay</span>
+                </label>
+                <label class="filter-checkbox-row" title="Chỉ học từ được đánh dấu Tự động từ">
+                  <input type="checkbox" id="filter-tag-tudongtu">
+                  <span style="color: hsl(var(--cyan));">Tự động từ</span>
+                </label>
+                <label class="filter-checkbox-row" title="Chỉ học từ được đánh dấu Tha động từ">
+                  <input type="checkbox" id="filter-tag-thadongtu">
+                  <span style="color: hsl(var(--purple));">Tha động từ</span>
+                </label>
+              </div>
+              
+              <button id="btn-start-learning" class="btn-primary btn-full" style="margin-top: 10px; background: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--purple))); color: white; border: none; font-weight: 600;">
+                <i data-lucide="play-circle"></i> Nạp Playlist học
+              </button>
             </div>
           </div>
 
@@ -116,6 +162,10 @@
             <div class="controls-status">
               <span id="player-mode-status" class="status-indicator active">Đang tự động chuyển</span>
               <span id="player-progress-ratio">0 / 0 từ</span>
+              <button id="btn-toggle-playlist" class="btn-mini-toggle" title="Hiện / Ẩn Sidebar thiết lập Playlist">
+                <i data-lucide="sidebar" style="width: 13px; height: 13px;"></i>
+                <span id="text-toggle-playlist">Ẩn Playlist</span>
+              </button>
             </div>
             
             <!-- Controls Grid -->
@@ -173,13 +223,26 @@
       <!-- VIEW 2: MANAGER VIEW -->
       <section id="manager-view" class="view-section">
         <!-- Manager Subnav Bar -->
-        <div class="manager-subnav">
-          <button id="tab-excel" class="subnav-btn active">
-            <i data-lucide="file-spreadsheet"></i> Nhập Excel & Thủ công
-          </button>
-          <button id="tab-pdf" class="subnav-btn">
-            <i data-lucide="file-text"></i> Trình nhập PDF N3
-          </button>
+        <div class="manager-subnav" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; margin-bottom: 15px;">
+          <div style="display: flex; gap: 8px;">
+            <button id="tab-excel" class="subnav-btn active">
+              <i data-lucide="file-spreadsheet"></i> Nhập Excel & Thủ công
+            </button>
+            <button id="tab-pdf" class="subnav-btn">
+              <i data-lucide="file-text"></i> Trình nhập PDF N3
+            </button>
+          </div>
+          
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="btn-import-db" class="btn-secondary" style="padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--text-secondary); white-space: nowrap; background: rgba(255,255,255,0.02); height: 35px; box-sizing: border-box;">
+              <i data-lucide="upload-cloud"></i> Nạp dữ liệu JSON
+            </button>
+            <input type="file" id="json-file-input" accept=".json" style="display: none;">
+            
+            <button id="btn-export-db" class="btn-primary" style="background: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--purple))); padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; border: none; cursor: pointer; color: white; white-space: nowrap; height: 35px; box-sizing: border-box;">
+              <i data-lucide="download-cloud"></i> Xuất dữ liệu JSON
+            </button>
+          </div>
         </div>
 
         <!-- Tab Content 1: Excel & Manual -->
@@ -246,55 +309,92 @@
             </div>
           </div>
 
-          <!-- Column Right: Vocab Table Manager -->
-          <div class="manager-column-right">
-            <div class="glass-card panel-card vocab-list-panel">
-              <div class="panel-header-row">
-                <h2 class="panel-title">
-                  <i data-lucide="list-video"></i> Danh Sách Từ Vựng Hiện Tại
-                </h2>
+          <!-- Column Right: Relational Directory Split Workspace -->
+          <div class="manager-column-right" style="grid-column: span 1;">
+            <div class="manager-split-workspace">
+              
+              <!-- Left: Categories Tree Panel -->
+              <div class="glass-card panel-card workspace-tree-panel">
+                <div class="panel-header-row" style="margin-bottom: 12px; flex-wrap: nowrap; gap: 4px;">
+                  <h2 class="panel-title" style="margin-bottom: 0; font-size: 0.9rem; white-space: nowrap;">
+                    <i data-lucide="folder-tree"></i> Thư mục
+                  </h2>
+                  <button id="btn-add-category" class="btn-primary btn-xs" title="Thêm thư mục con hoặc thư mục gốc mới" style="padding: 4px 6px; font-size: 0.7rem; white-space: nowrap;">
+                    <i data-lucide="folder-plus"></i> + Thư mục
+                  </button>
+                </div>
                 
-                <div class="vocab-table-actions">
-                  <button id="btn-export-db" class="btn-primary btn-sm" title="Xuất file cơ sở dữ liệu để đồng bộ lên điện thoại" style="background: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--purple))); color: white; border: none;">
-                    <i data-lucide="download-cloud"></i> Xuất App Data
-                  </button>
-                  <button id="btn-clear-all" class="btn-danger btn-sm" title="Xóa toàn bộ từ vựng">
-                    <i data-lucide="trash-2"></i> Xóa tất cả
-                  </button>
-                  <button id="btn-load-preset" class="btn-info btn-sm" title="Khôi phục danh sách từ vựng mẫu">
-                    <i data-lucide="refresh-cw"></i> Nạp từ mẫu
-                  </button>
+                <div id="workspace-category-tree" class="category-tree-container">
+                  <!-- Dynamic Tree rendered by JS -->
                 </div>
               </div>
-
-              <!-- Search Bar -->
-              <div class="search-bar-container">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="vocab-search-input" placeholder="Tìm kiếm từ vựng, cách đọc, âm Hán Việt hoặc nghĩa..." autocomplete="off">
-              </div>
-
-              <!-- Word Table Container -->
-              <div class="table-container">
-                <table class="vocab-table">
-                  <thead>
-                    <tr>
-                      <th>Kanji</th>
-                      <th>Hiragana</th>
-                      <th>Âm Hán Việt</th>
-                      <th>Nghĩa tiếng Việt</th>
-                      <th class="text-center">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="vocab-table-body">
-                    <!-- Dynamic Rows Loaded Here -->
-                  </tbody>
-                </table>
-                <div id="no-words-placeholder" class="no-words-placeholder">
-                  <i data-lucide="folder-open"></i>
-                  <p>Không có từ vựng nào trong danh sách.</p>
-                  <span>Hãy tải file Excel lên hoặc nhập từ thủ công ở cột bên cạnh để bắt đầu học!</span>
+              
+              <!-- Right: Vocab Data Grid Table -->
+              <div class="glass-card panel-card workspace-grid-panel">
+                <div class="panel-header-row" style="margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+                  <h2 class="panel-title" style="margin-bottom: 0; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 150px;">
+                    <i data-lucide="list-todo"></i> <span id="current-category-label" style="color: hsl(var(--cyan));">Tất cả từ vựng</span>
+                  </h2>
+                  
+                  <div class="vocab-table-actions" style="gap: 4px; flex-wrap: wrap;">
+                    <button id="btn-add-word-modal" class="btn-primary btn-xs" style="background: linear-gradient(135deg, hsl(var(--emerald)), hsl(var(--cyan))); font-size: 0.7rem; padding: 4px 8px;" title="Thêm từ vựng thủ công vào thư mục đang đứng">
+                      <i data-lucide="plus-circle"></i> Thêm từ mới
+                    </button>
+                    <button id="btn-bulk-remove-relation" class="btn-secondary btn-xs" title="Xóa các từ đã chọn khỏi thư mục hiện tại" style="font-size: 0.7rem; padding: 4px 8px;">
+                      <i data-lucide="folder-minus"></i> Bỏ khỏi mục
+                    </button>
+                    <button id="btn-bulk-delete-permanent" class="btn-danger btn-xs" title="Xóa vĩnh viễn các từ đã chọn khỏi hệ thống" style="font-size: 0.7rem; padding: 4px 8px;">
+                      <i data-lucide="trash-2"></i> Xóa vĩnh viễn
+                    </button>
+                    <button id="btn-clear-all" class="btn-danger btn-xs" title="Xóa sạch toàn bộ cơ sở dữ liệu" style="font-size: 0.7rem; padding: 4px 6px;">
+                      Xóa sạch DB
+                    </button>
+                    <button id="btn-load-preset" class="btn-info btn-xs" title="Khôi phục dữ liệu mẫu ban đầu" style="font-size: 0.7rem; padding: 4px 6px;">
+                      Reset preset
+                    </button>
+                  </div>
                 </div>
+                
+                <!-- Search and Stats Bar -->
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center; width: 100%; flex-wrap: wrap;">
+                  <div class="search-bar-container" style="flex: 1; margin-bottom: 0; min-width: 200px;">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="vocab-search-input" placeholder="Tìm kiếm từ trong thư mục đang chọn..." autocomplete="off">
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap;">
+                    Danh sách: <strong id="current-grid-count" style="color: #fff;">0</strong> từ
+                  </div>
+                </div>
+                
+                <!-- Word Data Grid Container -->
+                <div class="table-container" style="flex: 1; height: 100%;">
+                  <table class="vocab-table">
+                    <thead>
+                      <tr>
+                        <th class="checkbox-col">
+                          <input type="checkbox" id="header-select-all" class="row-selector" title="Chọn tất cả">
+                        </th>
+                        <th>Chữ Hán (Kanji)</th>
+                        <th>Cách đọc (Hiragana)</th>
+                        <th>Âm Hán Việt</th>
+                        <th>Nghĩa Việt</th>
+                        <th class="text-center" style="width: 60px;">Xóa</th>
+                      </tr>
+                    </thead>
+                    <tbody id="vocab-table-body">
+                      <!-- Dynamic rows loaded here -->
+                    </tbody>
+                  </table>
+                  
+                  <div id="no-words-placeholder" class="no-words-placeholder">
+                    <i data-lucide="folder-open"></i>
+                    <p>Thư mục này chưa có từ vựng nào.</p>
+                    <span>Nhấp đúp chuột thẳng vào chữ Kanji hoặc Nghĩa để sửa trực tiếp (Inline Edit) cực kỳ nhanh!</span>
+                  </div>
+                </div>
+                
               </div>
+              
             </div>
           </div>
 
@@ -415,6 +515,65 @@
     </footer>
   </div>
 
+  <!-- Modal: Sleek Manual Word Adder Target-Bound -->
+  <div id="add-word-modal" class="kotoba-modal">
+    <div class="kotoba-modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i data-lucide="plus-circle" style="color: hsl(var(--cyan)); width: 18px; height: 18px;"></i> Thêm từ vựng mới
+        </h3>
+        <button id="btn-close-word-modal" class="btn-close-modal" title="Đóng cửa sổ">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      
+      <form id="modal-add-form" class="manual-form">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Thư mục đích hiện tại</label>
+          <input type="text" id="modal-add-target-category" class="form-input" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: hsl(var(--cyan)); cursor: not-allowed; width: 100%; padding: 8px; border-radius: 6px; font-size: 0.8rem; box-sizing: border-box;" readonly>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="modal-input-kanji" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Từ vựng (Kanji / Chữ Hán) <span class="required">*</span></label>
+          <input type="text" id="modal-input-kanji" placeholder="Ví dụ: 先生 hoặc 食べる" required autocomplete="off" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-size: 0.8rem; box-sizing: border-box;" class="form-input">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="modal-input-hiragana" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Cách đọc (Hiragana / Furigana) <span class="required">*</span></label>
+          <input type="text" id="modal-input-hiragana" placeholder="Ví dụ: せんせい hoặc たべる" required autocomplete="off" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-size: 0.8rem; box-sizing: border-box;" class="form-input">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="modal-input-hanviet" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Âm Hán Việt</label>
+          <input type="text" id="modal-input-hanviet" placeholder="Ví dụ: TIÊN SINH" autocomplete="off" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-size: 0.8rem; box-sizing: border-box;" class="form-input">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="modal-input-meaning" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nghĩa tiếng Việt <span class="required">*</span></label>
+          <input type="text" id="modal-input-meaning" placeholder="Ví dụ: Giáo viên, thầy cô" required autocomplete="off" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-size: 0.8rem; box-sizing: border-box;" class="form-input">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px; display: block;">Phân loại ngữ pháp</label>
+          <div style="display: flex; gap: 20px;">
+            <label class="filter-checkbox-row" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
+              <input type="checkbox" id="modal-input-tag-tudongtu" style="accent-color: hsl(var(--cyan)); cursor: pointer;">
+              <span>Tự động từ (Ví dụ: 開く)</span>
+            </label>
+            <label class="filter-checkbox-row" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
+              <input type="checkbox" id="modal-input-tag-thadongtu" style="accent-color: hsl(var(--cyan)); cursor: pointer;">
+              <span>Tha động từ (Ví dụ: 開ける)</span>
+            </label>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn-primary btn-full" style="padding: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;">
+          <i data-lucide="plus"></i> Thêm vào thư mục
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Notification Toast Container -->
   <div id="toast-container" class="toast-container"></div>
 
@@ -423,8 +582,7 @@
     lucide.createIcons();
   </script>
   
-  <!-- Database (Sync from PC) -->
-  <script src="kotoba_database.js"></script>
+
   
   <!-- App JS Logic -->
   <script src="app.js"></script>

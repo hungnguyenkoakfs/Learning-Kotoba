@@ -2284,6 +2284,15 @@ function bindEvents() {
       }
       
       showToast(`Đã nạp playlist học thành công! (${playlist.length} từ)`, "success");
+
+      // Automatically collapse bottom drawer on mobile after loading
+      if (window.innerWidth <= 768) {
+        const btnTogglePlaylist = document.getElementById("btn-toggle-playlist");
+        const playerWorkspace = document.getElementById("player-workspace");
+        if (playerWorkspace && !playerWorkspace.classList.contains("playlist-collapsed") && btnTogglePlaylist) {
+          btnTogglePlaylist.click();
+        }
+      }
     });
   }
 
@@ -2342,6 +2351,23 @@ function bindEvents() {
       }
     });
   }
+
+  // Mobile click-away support to close bottom sheet drawer automatically
+  document.addEventListener("click", (e) => {
+    if (window.innerWidth <= 768) {
+      const workspace = document.getElementById("player-workspace");
+      const panel = document.querySelector(".playlist-builder-panel");
+      const btnToggle = document.getElementById("btn-toggle-playlist");
+      
+      if (workspace && panel && btnToggle) {
+        if (!workspace.classList.contains("playlist-collapsed")) {
+          if (!panel.contains(e.target) && !btnToggle.contains(e.target)) {
+            btnToggle.click();
+          }
+        }
+      }
+    }
+  });
 }
 
 // ==========================================================================

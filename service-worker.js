@@ -1,4 +1,4 @@
-const CACHE_NAME = "kotoba-booster-cache-v3";
+const CACHE_NAME = "kotoba-booster-cache-v2";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   "./app.js",
   "./favicon.svg",
   "./manifest.json",
+  "./kotoba_database.js",
   "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap",
   "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js",
@@ -41,11 +42,6 @@ self.addEventListener("activate", (event) => {
 
 // Intercept network requests: Serve from cache first, fallback to network
 self.addEventListener("fetch", (event) => {
-  // Always bypass cache for the local database file to ensure direct sync updates
-  if (event.request.url.includes("kotoba_database.js")) {
-    return; // Let browser fetch naturally from disk/network
-  }
-  
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {

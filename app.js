@@ -20,7 +20,7 @@ if (window.pdfjsLib) {
 
 // Playback variables
 let isPlaying = true;
-let playSpeed = 1000; // default 1000ms (1 second)
+let playSpeed = 3000; // default 1000ms (1 second)
 let isRandom = true;
 let autoTTS = false;
 
@@ -151,18 +151,18 @@ function initDB() {
         resolve(null);
         return;
       }
-      
+
       const request = indexedDB.open(DB_NAME, DB_VERSION);
-      
+
       request.onerror = (e) => {
         console.warn("IndexedDB failed to open, falling back to localStorage", e);
         resolve(null);
       };
-      
+
       request.onsuccess = (e) => {
         resolve(e.target.result);
       };
-      
+
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -183,15 +183,15 @@ async function saveVocabListDB(list) {
   } catch (lsError) {
     console.warn("LocalStorage quota exceeded, continuing with IndexedDB only", lsError);
   }
-  
+
   const db = await initDB();
   if (!db) return;
-  
+
   return new Promise((resolve) => {
     try {
       const transaction = db.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-      
+
       const clearRequest = store.clear();
       clearRequest.onsuccess = () => {
         let addedCount = 0;
@@ -199,7 +199,7 @@ async function saveVocabListDB(list) {
           resolve(true);
           return;
         }
-        
+
         list.forEach((item, index) => {
           const addRequest = store.add({ ...item, listIndex: index });
           addRequest.onsuccess = () => {
@@ -217,7 +217,7 @@ async function saveVocabListDB(list) {
           };
         });
       };
-      
+
       clearRequest.onerror = () => resolve(false);
     } catch (err) {
       console.error("IndexedDB write transaction failed", err);
@@ -232,27 +232,27 @@ async function loadVocabListDB() {
     try {
       const data = localStorage.getItem("kotoba_vocab_list");
       return data ? JSON.parse(data) : [];
-    } catch(e) {
+    } catch (e) {
       return [];
     }
   }
-  
+
   return new Promise((resolve) => {
     try {
       const transaction = db.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.getAll();
-      
+
       request.onsuccess = (e) => {
         const items = e.target.result || [];
         // Sort items by listIndex to maintain user sequence
         items.sort((a, b) => a.listIndex - b.listIndex);
-        
+
         const cleanList = items.map(item => {
           const { id, listIndex, ...rest } = item;
           return rest;
         });
-        
+
         if (cleanList.length > 0) {
           resolve(cleanList);
         } else {
@@ -260,17 +260,17 @@ async function loadVocabListDB() {
           try {
             const data = localStorage.getItem("kotoba_vocab_list");
             resolve(data ? JSON.parse(data) : []);
-          } catch(e) {
+          } catch (e) {
             resolve([]);
           }
         }
       };
-      
+
       request.onerror = () => {
         try {
           const data = localStorage.getItem("kotoba_vocab_list");
           resolve(data ? JSON.parse(data) : []);
-        } catch(e) {
+        } catch (e) {
           resolve([]);
         }
       };
@@ -279,7 +279,7 @@ async function loadVocabListDB() {
       try {
         const data = localStorage.getItem("kotoba_vocab_list");
         resolve(data ? JSON.parse(data) : []);
-      } catch(e) {
+      } catch (e) {
         resolve([]);
       }
     }
@@ -292,16 +292,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Load database from IndexedDB or localStorage fallback
   await loadVocabList();
-  
+
   // Populate chapter selectors
   populateChapterDropdown();
-  
+
   // Start speech synthesis setup
   setupSpeechSynthesis();
 
   // Bind all UI interaction listeners
   bindEvents();
-  
+
   // Set initial player view index and start ticking
   const list = getFilteredVocabList();
   if (list.length > 0) {
@@ -323,12 +323,12 @@ async function loadVocabList() {
   } catch (e) {
     console.error("Lỗi khi load danh sách từ vựng:", e);
   }
-  
+
   // Auto-detect App Data sync on startup
   if (window.KOTOBA_PRESET_DB && window.KOTOBA_PRESET_DB.length > 0) {
     const dbLength = window.KOTOBA_PRESET_DB.length;
     const localLength = loadedList ? loadedList.length : 0;
-    
+
     // If the DB has different number of words than local database, sync!
     if (dbLength !== localLength) {
       if (confirm(`Phát hiện bản cập nhật dữ liệu từ máy tính (${dbLength} từ). Bạn có muốn đồng bộ lên điện thoại không?`)) {
@@ -354,7 +354,7 @@ async function loadVocabList() {
     }));
     await saveVocabList();
   }
-  
+
   updateGlobalStats();
   renderVocabTable();
 }
@@ -379,7 +379,7 @@ function updateGlobalStats() {
 function updateRatioIndicator(list) {
   const ratioEl = DOM.playerProgressRatio;
   if (!ratioEl) return;
-  
+
   const targetList = list || getFilteredVocabList();
   if (targetList.length === 0) {
     ratioEl.textContent = "0 / 0 từ";
@@ -398,16 +398,16 @@ function getFilteredVocabList() {
   if (cachedActiveFilter === activeChapterFilter && cachedVocabLength === vocabList.length) {
     return cachedFilteredList;
   }
-  
+
   cachedActiveFilter = activeChapterFilter;
   cachedVocabLength = vocabList.length;
-  
+
   if (activeChapterFilter === "all") {
     cachedFilteredList = vocabList;
   } else {
     cachedFilteredList = vocabList.filter(item => item.chapter === activeChapterFilter);
   }
-  
+
   return cachedFilteredList;
 }
 
@@ -415,13 +415,13 @@ function getFilteredVocabList() {
 function populateChapterDropdown() {
   const select = DOM.playerChapterSelect;
   if (!select) return;
-  
+
   const currentVal = select.value || "all";
   select.innerHTML = '<option value="all">Tất cả các chương</option>';
-  
+
   // Extract unique chapters
   const chapters = [...new Set(vocabList.map(item => item.chapter || "Từ vựng mẫu N5-N4"))];
-  
+
   chapters.forEach(chap => {
     const opt = document.createElement("option");
     opt.value = chap;
@@ -431,7 +431,7 @@ function populateChapterDropdown() {
     }
     select.appendChild(opt);
   });
-  
+
   // Fallback if previous filter is no longer available
   if (currentVal !== "all" && !chapters.includes(currentVal)) {
     select.value = "all";
@@ -445,9 +445,9 @@ function populateChapterDropdown() {
 
 function resumeTimerAnimation() {
   pauseTimerAnimation();
-  
+
   const progressBar = DOM.cardProgressBar;
-  
+
   // Animate progress bar using GPU-bound Web Animations API
   if (progressBar) {
     if (progressBar.activeAnimation) {
@@ -462,13 +462,13 @@ function resumeTimerAnimation() {
       fill: "forwards"
     });
   }
-  
+
   function tick() {
     const list = getFilteredVocabList();
     if (!isPlaying || list.length === 0) return;
-    
+
     showNextWord(list);
-    
+
     if (progressBar) {
       if (progressBar.activeAnimation) {
         progressBar.activeAnimation.cancel();
@@ -482,10 +482,10 @@ function resumeTimerAnimation() {
         fill: "forwards"
       });
     }
-    
+
     progressAnimId = setTimeout(tick, playSpeed);
   }
-  
+
   progressAnimId = setTimeout(tick, playSpeed);
 }
 
@@ -494,7 +494,7 @@ function pauseTimerAnimation() {
     clearTimeout(progressAnimId);
     progressAnimId = null;
   }
-  
+
   const progressBar = DOM.cardProgressBar;
   if (progressBar && progressBar.activeAnimation) {
     progressBar.activeAnimation.pause(); // Pause smoothly in place
@@ -508,7 +508,7 @@ function pauseTimerAnimation() {
 function showNextWord(list) {
   const targetList = list || getFilteredVocabList();
   if (targetList.length === 0) return;
-  
+
   selectNextWordIndex(targetList);
   displayCurrentWord(targetList);
 }
@@ -516,7 +516,7 @@ function showNextWord(list) {
 function showPrevWord(list) {
   const targetList = list || getFilteredVocabList();
   if (targetList.length === 0) return;
-  
+
   if (historyStack.length > 1 && historyIndex > 0) {
     // Step back in current session history
     historyIndex--;
@@ -526,21 +526,21 @@ function showPrevWord(list) {
     currentIndex = currentIndex - 1;
     if (currentIndex < 0) currentIndex = targetList.length - 1;
   }
-  
+
   displayCurrentWord(targetList);
 }
 
 function selectNextWordIndex(list) {
   const targetList = list || getFilteredVocabList();
   if (targetList.length === 0) return;
-  
+
   // If we are navigating the history stack and reached the end
   if (historyIndex < historyStack.length - 1) {
     historyIndex++;
     currentIndex = historyStack[historyIndex];
     return;
   }
-  
+
   let nextIdx = 0;
   if (isRandom) {
     // Generate a random number different from the current if list length > 1
@@ -557,9 +557,9 @@ function selectNextWordIndex(list) {
       nextIdx = 0;
     }
   }
-  
+
   currentIndex = nextIdx;
-  
+
   // Add to session history stack (max limit 100 entries to prevent memory grow)
   historyStack.push(currentIndex);
   if (historyStack.length > 100) {
@@ -574,15 +574,15 @@ function displayCurrentWord(list) {
     updatePlayerPlaceholder();
     return;
   }
-  
+
   // Safety check if index out of bounds
   if (currentIndex < 0 || currentIndex >= targetList.length) {
     currentIndex = 0;
   }
-  
+
   const word = targetList[currentIndex];
   const cardEl = DOM.vocabCard;
-  
+
   // Trigger card refresh pulse micro-animation using double requestAnimationFrame to avoid synchronous reflows!
   if (cardEl) {
     cardEl.classList.remove("change-word");
@@ -592,12 +592,12 @@ function displayCurrentWord(list) {
       });
     });
   }
-  
+
   // Write contents
   if (DOM.cardHiragana) DOM.cardHiragana.textContent = word.hiragana || "Cách đọc";
   if (DOM.cardKanji) DOM.cardKanji.textContent = word.kanji || "漢字";
   if (DOM.cardMeaning) DOM.cardMeaning.textContent = word.meaning || "Nghĩa tiếng Việt";
-  
+
   const hanvietEl = DOM.cardHanviet;
   if (hanvietEl) {
     if (word.hanviet && word.hanviet.trim()) {
@@ -607,12 +607,12 @@ function displayCurrentWord(list) {
       hanvietEl.style.display = "none";
     }
   }
-  
+
   updateRatioIndicator(targetList);
-  
+
   // Auto speech synthesis read-out if enabled
   if (autoTTS) {
-    speakWord(word.kanji || word.hiragana);
+    speakWord(word.hiragana || word.kanji);
   }
 }
 
@@ -621,7 +621,7 @@ function updatePlayerPlaceholder() {
   if (DOM.cardKanji) DOM.cardKanji.textContent = "Trống";
   if (DOM.cardMeaning) DOM.cardMeaning.textContent = "Hãy thêm danh sách từ vựng từ Excel hoặc nhập thủ công để bắt đầu học nhé!";
   if (DOM.cardHanviet) DOM.cardHanviet.style.display = "none";
-  
+
   const progressBar = DOM.cardProgressBar;
   if (progressBar) {
     if (progressBar.activeAnimation) {
@@ -637,7 +637,7 @@ function updatePlayerPlaceholder() {
 
 function setupSpeechSynthesis() {
   if (!synth) return;
-  
+
   // Load voices dynamically (Google Chrome loads them asynchronously)
   populateVoiceList();
   if (synth.onvoiceschanged !== undefined) {
@@ -647,14 +647,14 @@ function setupSpeechSynthesis() {
 
 function populateVoiceList() {
   if (!synth) return;
-  
+
   voices = synth.getVoices();
   const voiceSelect = document.getElementById("voice-select");
   voiceSelect.innerHTML = "";
-  
+
   // Match Japanese voices
   const jaVoices = voices.filter(v => v.lang.toLowerCase().includes("ja") || v.lang === "ja-JP");
-  
+
   if (jaVoices.length === 0) {
     const opt = document.createElement("option");
     opt.textContent = "Không tìm thấy giọng Nhật (Sử dụng hệ thống)";
@@ -666,7 +666,7 @@ function populateVoiceList() {
       const opt = document.createElement("option");
       opt.textContent = `${voice.name} (${voice.lang})`;
       opt.value = index;
-      
+
       // Auto select premium voices or defaults
       if (voice.default || voice.name.includes("Google") || voice.name.includes("Natural")) {
         opt.selected = true;
@@ -674,7 +674,7 @@ function populateVoiceList() {
       }
       voiceSelect.appendChild(opt);
     });
-    
+
     // If no voice was selected, pick the first Japanese voice
     if (voiceSelect.selectedIndex === -1) {
       voiceSelect.selectedIndex = 0;
@@ -684,27 +684,58 @@ function populateVoiceList() {
 }
 
 function speakWord(text) {
+  if (!text) return;
+
+  // Hủy giọng nói local đang phát trước đó để tránh lag
+  if (synth) {
+    synth.cancel();
+  }
+
+  // 1. Thử phát bằng Google TTS Online chất lượng cao nếu có mạng
+  if (navigator.onLine) {
+    try {
+      const googleTTSUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&q=${encodeURIComponent(text)}`;
+      const audio = new Audio(googleTTSUrl);
+
+      // Gán instance để có thể stop nếu chuyển từ mới nhanh
+      if (window.activeAudioTTS) {
+        window.activeAudioTTS.pause();
+      }
+      window.activeAudioTTS = audio;
+
+      audio.play().catch(err => {
+        console.warn("Google TTS bị lỗi phát âm, chuyển sang Local Speech:", err);
+        speakLocal(text);
+      });
+      return;
+    } catch (e) {
+      console.warn("Không khởi tạo được Audio Online:", e);
+    }
+  }
+
+  // 2. Chế độ ngoại tuyến hoặc lỗi: sử dụng Web Speech API cục bộ
+  speakLocal(text);
+}
+
+function speakLocal(text) {
   if (!synth) return;
-  
-  // Cancel active/queued voice reading to avoid delay lag
-  synth.cancel();
-  
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ja-JP";
-  
+
   const voiceSelect = document.getElementById("voice-select");
   const jaVoices = voices.filter(v => v.lang.toLowerCase().includes("ja") || v.lang === "ja-JP");
-  
+
   if (jaVoices.length > 0 && voiceSelect.value !== "") {
     utterance.voice = jaVoices[parseInt(voiceSelect.value)];
   } else if (jpVoice) {
     utterance.voice = jpVoice;
   }
-  
+
   utterance.rate = 0.85; // slower speech rate for absolute clarity
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
-  
+
   synth.speak(utterance);
 }
 
@@ -714,29 +745,29 @@ function speakWord(text) {
 
 function handleExcelUpload(file) {
   if (!file) return;
-  
+
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     const data = e.target.result;
     try {
       const workbook = XLSX.read(data, { type: 'binary' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
+
       if (rows.length < 2) {
         showToast("File Excel trống hoặc không có dòng tiêu đề!", "error");
         return;
       }
-      
+
       const headers = rows[0];
       let kanjiIdx = -1, hiraganaIdx = -1, hanvietIdx = -1, meaningIdx = -1;
-      
+
       // Match column index by comparing headers
       for (let i = 0; i < headers.length; i++) {
         if (!headers[i]) continue;
         const h = String(headers[i]).trim().toLowerCase();
-        
+
         if (["kanji", "từ vựng", "tu vung", "word", "chữ hán", "chu han", "hán tự"].some(term => h.includes(term))) {
           if (kanjiIdx === -1) kanjiIdx = i;
         } else if (["hiragana", "cách đọc", "cach doc", "furigana", "reading", "kana"].some(term => h.includes(term))) {
@@ -747,24 +778,24 @@ function handleExcelUpload(file) {
           if (meaningIdx === -1) meaningIdx = i;
         }
       }
-      
+
       // Fallback index orders if columns matching failed
       if (kanjiIdx === -1) kanjiIdx = 0;
       if (hiraganaIdx === -1) hiraganaIdx = 1;
       if (hanvietIdx === -1) hanvietIdx = 2;
       if (meaningIdx === -1) meaningIdx = 3;
-      
+
       const importedWords = [];
-      
+
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
         if (!row || row.length === 0) continue;
-        
+
         const kanji = row[kanjiIdx] || '';
         const hiragana = row[hiraganaIdx] || '';
         const hanviet = row[hanvietIdx] || '';
         const meaning = row[meaningIdx] || '';
-        
+
         if (String(kanji).trim() && String(meaning).trim()) {
           importedWords.push({
             kanji: String(kanji).trim(),
@@ -775,7 +806,7 @@ function handleExcelUpload(file) {
           });
         }
       }
-      
+
       if (importedWords.length > 0) {
         // Concat to existing vocab list
         vocabList = [...vocabList, ...importedWords];
@@ -783,24 +814,24 @@ function handleExcelUpload(file) {
         updateGlobalStats();
         populateChapterDropdown(); // Rebuild chapter list
         renderVocabTable();
-        
+
         // Update display to point to the newly imported lists
         if (currentIndex === -1) {
           currentIndex = 0;
           displayCurrentWord();
         }
-        
+
         showToast(`Đã import thành công ${importedWords.length} từ vựng mới!`, "success");
       } else {
         showToast("Không tìm thấy dòng từ vựng hợp lệ nào trong file!", "error");
       }
-      
+
     } catch (err) {
       console.error(err);
       showToast("Lỗi xử lý file Excel. Vui lòng kiểm tra lại định dạng!", "error");
     }
   };
-  
+
   reader.readAsBinaryString(file);
 }
 
@@ -814,11 +845,11 @@ function downloadExcelTemplate() {
     ["桜", "さくら", "ANH", "Hoa anh đào"],
     ["美味しい", "おいしい", "MỸ VỊ", "Ngon miệng"]
   ];
-  
+
   const worksheet = XLSX.utils.aoa_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Kotoba Template");
-  
+
   XLSX.writeFile(workbook, "Kotoba_Booster_Template.xlsx");
   showToast("Đã tải tệp Excel mẫu về máy!", "success");
 }
@@ -832,10 +863,10 @@ function renderVocabTable() {
   const placeholder = DOM.noWordsPlaceholder;
   const searchInput = DOM.vocabSearchInput;
   if (!tbody || !placeholder || !searchInput) return;
-  
+
   const filterText = searchInput.value.trim().toLowerCase();
   tbody.innerHTML = "";
-  
+
   const filteredList = vocabList.filter(item => {
     return (
       (item.kanji && item.kanji.toLowerCase().includes(filterText)) ||
@@ -844,16 +875,16 @@ function renderVocabTable() {
       (item.meaning && item.meaning.toLowerCase().includes(filterText))
     );
   });
-  
+
   if (filteredList.length === 0) {
     placeholder.style.display = "flex";
   } else {
     placeholder.style.display = "none";
-    
+
     filteredList.forEach((word) => {
       // Find true index in primary array
       const rawIndex = vocabList.indexOf(word);
-      
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${word.kanji}</td>
@@ -870,7 +901,7 @@ function renderVocabTable() {
       `;
       tbody.appendChild(tr);
     });
-    
+
     // Refresh row trash icons
     lucide.createIcons();
   }
@@ -884,33 +915,33 @@ function addWordManually(kanji, hiragana, hanviet, meaning) {
     meaning: meaning.trim(),
     chapter: "Nhập thủ công"
   };
-  
+
   vocabList.push(newWord);
   saveVocabList();
   updateGlobalStats();
   populateChapterDropdown(); // Rebuild chapter selector
   renderVocabTable();
-  
+
   // If list was empty, point index to 0
   if (currentIndex === -1) {
     currentIndex = 0;
     displayCurrentWord();
   }
-  
+
   showToast(`Đã thêm từ "${kanji}" thành công!`, "success");
 }
 
 function deleteWord(index) {
   if (index < 0 || index >= vocabList.length) return;
-  
+
   const removedWord = vocabList[index].kanji;
   vocabList.splice(index, 1);
-  
+
   saveVocabList();
   updateGlobalStats();
   populateChapterDropdown(); // Rebuild chapter selector
   renderVocabTable();
-  
+
   // Safety checks on index out of bounds
   if (vocabList.length === 0) {
     currentIndex = -1;
@@ -921,29 +952,29 @@ function deleteWord(index) {
   } else if (index === currentIndex) {
     displayCurrentWord(); // reload current display
   }
-  
+
   // Reset session history stack
   historyStack = [];
   historyIndex = -1;
-  
+
   showToast(`Đã xóa từ "${removedWord}" khỏi danh sách`, "info");
 }
 
 function clearAllVocab() {
   if (vocabList.length === 0) return;
-  
+
   if (confirm("Bạn có chắc chắn muốn xóa TOÀN BỘ từ vựng hiện có không?")) {
     vocabList = [];
     saveVocabList();
     updateGlobalStats();
     populateChapterDropdown();
     renderVocabTable();
-    
+
     currentIndex = -1;
     historyStack = [];
     historyIndex = -1;
     displayCurrentWord();
-    
+
     showToast("Đã xóa sạch toàn bộ từ vựng danh sách!", "info");
   }
 }
@@ -953,7 +984,7 @@ function exportDatabase() {
     showToast("Không có dữ liệu để xuất!", "error");
     return;
   }
-  
+
   const dbContent = `// File cơ sở dữ liệu từ vựng Kotoba Booster.
 // Được tạo tự động vào lúc ${new Date().toLocaleString('vi-VN')}
 window.KOTOBA_PRESET_DB = ${JSON.stringify(vocabList, null, 2)};
@@ -968,7 +999,7 @@ window.KOTOBA_PRESET_DB = ${JSON.stringify(vocabList, null, 2)};
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  
+
   showToast("Đã xuất file dữ liệu! Hãy lưu vào thư mục dự án trên máy tính để đồng bộ.", "success");
 }
 
@@ -980,17 +1011,17 @@ function loadPresetVocabulary() {
       updateGlobalStats();
       populateChapterDropdown();
       renderVocabTable();
-      
+
       currentIndex = 0;
       historyStack = [];
       historyIndex = -1;
       displayCurrentWord();
-      
+
       showToast("Đã tải dữ liệu đồng bộ thành công!", "success");
     }
     return;
   }
-  
+
   if (confirm("Nạp lại bộ từ vựng N5-N4 mẫu của hệ thống?")) {
     vocabList = presetVocabulary.map(item => ({
       ...item,
@@ -1000,12 +1031,12 @@ function loadPresetVocabulary() {
     updateGlobalStats();
     populateChapterDropdown();
     renderVocabTable();
-    
+
     currentIndex = 0;
     historyStack = [];
     historyIndex = -1;
     displayCurrentWord();
-    
+
     showToast("Đã khôi phục bộ từ vựng mẫu thành công!", "success");
   }
 }
@@ -1016,9 +1047,9 @@ function renderVocabTable() {
   const placeholder = document.getElementById("no-words-placeholder");
   const searchInput = document.getElementById("vocab-search-input");
   const filterText = searchInput.value.trim().toLowerCase();
-  
+
   tbody.innerHTML = "";
-  
+
   const filteredList = vocabList.filter(item => {
     return (
       (item.kanji && item.kanji.toLowerCase().includes(filterText)) ||
@@ -1028,16 +1059,16 @@ function renderVocabTable() {
       (item.chapter && item.chapter.toLowerCase().includes(filterText))
     );
   });
-  
+
   if (filteredList.length === 0) {
     placeholder.style.display = "flex";
   } else {
     placeholder.style.display = "none";
-    
+
     filteredList.forEach((word, index) => {
       // Find true index in primary array
       const rawIndex = vocabList.indexOf(word);
-      
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>
@@ -1057,10 +1088,10 @@ function renderVocabTable() {
       `;
       tbody.appendChild(tr);
     });
-    
+
     // Refresh row trash icons
     lucide.createIcons();
-    
+
     // Bind row delete events
     document.querySelectorAll(".btn-row-delete").forEach(btn => {
       btn.addEventListener("click", (e) => {
@@ -1080,21 +1111,21 @@ function showToast(message, type = "info") {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  
+
   let iconName = "info";
   if (type === "success") iconName = "check-circle";
   if (type === "error") iconName = "alert-triangle";
-  
+
   toast.innerHTML = `
     <i data-lucide="${iconName}" class="toast-icon"></i>
     <span>${message}</span>
   `;
-  
+
   container.appendChild(toast);
-  
+
   // Bind lucide to new toast element icon
   lucide.createIcons();
-  
+
   // Automatically dispose toast element after 4s
   setTimeout(() => {
     toast.remove();
@@ -1111,27 +1142,27 @@ function bindEvents() {
   const navManager = document.getElementById("nav-manager");
   const viewPlayer = document.getElementById("player-view");
   const viewManager = document.getElementById("manager-view");
-  
+
   if (navPlayer && navManager && viewPlayer && viewManager) {
     navPlayer.addEventListener("click", () => {
       navPlayer.classList.add("active");
       navManager.classList.remove("active");
       viewPlayer.classList.add("active");
       viewManager.classList.remove("active");
-      
+
       // Resume cycle timer if isPlaying is true
       const list = getFilteredVocabList();
       if (isPlaying && list.length > 0) {
         resumeTimerAnimation();
       }
     });
-    
+
     navManager.addEventListener("click", () => {
       navPlayer.classList.remove("active");
       navManager.classList.add("active");
       viewPlayer.classList.remove("active");
       viewManager.classList.add("active");
-      
+
       // Pause cycle to prevent flashing behind screen
       pauseTimerAnimation();
     });
@@ -1156,7 +1187,7 @@ function bindEvents() {
       tabPdf.classList.add("active");
       tabContentExcel.classList.remove("active");
       tabContentPdf.classList.add("active");
-      
+
       // Trigger custom lucide refresh for PDF elements
       lucide.createIcons();
     });
@@ -1221,16 +1252,21 @@ function bindEvents() {
   if (btnPdfImportAction) {
     btnPdfImportAction.addEventListener("click", importSelectedPDFChapters);
   }
-  
+
+  const btnSyncFolder = document.getElementById("btn-sync-folder");
+  if (btnSyncFolder) {
+    btnSyncFolder.addEventListener("click", syncFolder);
+  }
+
   // Play Pause Actions
   const btnPlayPause = document.getElementById("btn-play-pause");
   const playPauseIcon = document.getElementById("play-pause-icon");
   const statusIndicator = DOM.playerModeStatus;
-  
+
   if (btnPlayPause && playPauseIcon && statusIndicator) {
     btnPlayPause.addEventListener("click", () => {
       if (vocabList.length === 0) return;
-      
+
       isPlaying = !isPlaying;
       if (isPlaying) {
         playPauseIcon.setAttribute("data-lucide", "pause");
@@ -1248,7 +1284,7 @@ function bindEvents() {
       lucide.createIcons();
     });
   }
-  
+
   // Skip buttons
   const btnNext = document.getElementById("btn-next");
   const btnPrev = document.getElementById("btn-prev");
@@ -1262,7 +1298,7 @@ function bindEvents() {
       }
     });
   }
-  
+
   if (btnPrev) {
     btnPrev.addEventListener("click", () => {
       showPrevWord();
@@ -1271,7 +1307,7 @@ function bindEvents() {
       }
     });
   }
-  
+
   // Random / Sequence Toggle
   const btnRandom = document.getElementById("btn-random");
   if (btnRandom) {
@@ -1286,7 +1322,7 @@ function bindEvents() {
       }
     });
   }
-  
+
   // Audio Controls
   const btnAutoSpeak = document.getElementById("btn-auto-speak");
   if (btnAutoSpeak) {
@@ -1298,7 +1334,7 @@ function bindEvents() {
         // speak current immediately
         if (currentIndex !== -1) {
           const word = vocabList[currentIndex];
-          speakWord(word.kanji || word.hiragana);
+          speakWord(word.hiragana || word.kanji);
         }
       } else {
         btnAutoSpeak.classList.remove("active");
@@ -1306,57 +1342,57 @@ function bindEvents() {
       }
     });
   }
-  
+
   // Manual card speak button click
   if (DOM.cardSpeakBtn) {
     DOM.cardSpeakBtn.addEventListener("click", () => {
       if (currentIndex !== -1) {
         const word = vocabList[currentIndex];
-        speakWord(word.kanji || word.hiragana);
+        speakWord(word.hiragana || word.kanji);
       }
     });
   }
-  
+
   // Interval speed slider
   const speedRange = DOM.speedRange;
   const speedValue = DOM.speedValue;
-  
+
   if (speedRange && speedValue) {
     speedRange.addEventListener("input", (e) => {
       const val = parseFloat(e.target.value);
       speedValue.textContent = val.toFixed(1);
       playSpeed = val * 1000;
-      
+
       // Scale timer remaining calculations
-      progressAccumulated = 0; 
+      progressAccumulated = 0;
       if (isPlaying) {
         resumeTimerAnimation();
       }
     });
   }
-  
+
   // Excel File drag-and-drop
   const dropZone = document.getElementById("excel-drop-zone");
   const fileInput = document.getElementById("excel-file-input");
-  
+
   if (dropZone && fileInput) {
     dropZone.addEventListener("click", () => fileInput.click());
-    
+
     fileInput.addEventListener("change", (e) => {
       if (e.target.files.length > 0) {
         handleExcelUpload(e.target.files[0]);
       }
     });
-    
+
     dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropZone.classList.add("dragover");
     });
-    
+
     dropZone.addEventListener("dragleave", () => {
       dropZone.classList.remove("dragover");
     });
-    
+
     dropZone.addEventListener("drop", (e) => {
       e.preventDefault();
       dropZone.classList.remove("dragover");
@@ -1365,31 +1401,31 @@ function bindEvents() {
       }
     });
   }
-  
+
   // Download excel sample template
   const btnDownloadTemplate = document.getElementById("btn-download-template");
   if (btnDownloadTemplate) {
     btnDownloadTemplate.addEventListener("click", downloadExcelTemplate);
   }
-  
+
   // Manual word adder form submission
   const manualAddForm = document.getElementById("manual-add-form");
   if (manualAddForm) {
     manualAddForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      
+
       const kanjiVal = document.getElementById("input-kanji").value;
       const hiraganaVal = document.getElementById("input-hiragana").value;
       const hanvietVal = document.getElementById("input-hanviet").value;
       const meaningVal = document.getElementById("input-meaning").value;
-      
+
       addWordManually(kanjiVal, hiraganaVal, hanvietVal, meaningVal);
-      
+
       // reset form
       e.target.reset();
     });
   }
-  
+
   // Table Manager triggers
   const btnClearAll = document.getElementById("btn-clear-all");
   const btnLoadPreset = document.getElementById("btn-load-preset");
@@ -1398,32 +1434,32 @@ function bindEvents() {
   if (btnClearAll) btnClearAll.addEventListener("click", clearAllVocab);
   if (btnLoadPreset) btnLoadPreset.addEventListener("click", loadPresetVocabulary);
   if (btnExportDb) btnExportDb.addEventListener("click", exportDatabase);
-  
+
   // Table dynamic search input
   if (DOM.vocabSearchInput) {
     DOM.vocabSearchInput.addEventListener("input", renderVocabTable);
   }
-  
+
   // Voice select change
   if (DOM.voiceSelect) {
     DOM.voiceSelect.addEventListener("change", () => {
       showToast("Đã thay đổi giọng nói tiếng Nhật!", "info");
     });
   }
-  
+
   // Player chapter filter select change
   const playerChapterSelect = DOM.playerChapterSelect;
   if (playerChapterSelect) {
     playerChapterSelect.addEventListener("change", (e) => {
       activeChapterFilter = e.target.value;
-      
+
       // Reset player sequence and session history for the selected chapter
       currentIndex = 0;
       historyStack = [];
       historyIndex = -1;
-      
+
       displayCurrentWord();
-      
+
       const label = activeChapterFilter === "all" ? "Tất cả các chương" : activeChapterFilter;
       showToast(`Đang học: ${label}`, "success");
     });
@@ -1445,230 +1481,278 @@ function bindEvents() {
 // 10. PDF PARSING & CHAPTER EXTRACTION (PDF.JS & POSITION CLUSTERING)
 // ==========================================================================
 
+async function parsePDFArrayBuffer(arrayBuffer, onProgress) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const numPages = pdf.numPages;
+
+  let currentChapter = "Chương 1 (Mặc định N3)";
+  let parsedWords = [];
+
+  // Save word helper to enforce rules and default fields
+  const saveParsedWord = (word) => {
+    if (!word) return;
+
+    let kan = (word.kanji || "").replace(/[□☐☑☒■]/g, "").trim();
+    let hira = (word.hiragana || "").replace(/[□☐☑☒■]/g, "").trim();
+    let han = (word.hanviet || "").replace(/[□☐☑☒■]/g, "").trim().toUpperCase();
+    let mean = (word.meaning || "").replace(/[□☐☑☒■]/g, "").trim();
+
+    if ((kan || hira) && mean) {
+      if (!hira) {
+        hira = kan; // fallback
+      }
+
+      parsedWords.push({
+        kanji: kan,
+        hiragana: hira,
+        hanviet: han,
+        meaning: mean,
+        chapter: word.chapter
+      });
+    }
+  };
+
+  // Iterate page by page
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    if (onProgress) {
+      onProgress(pageNum, numPages);
+    }
+
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const items = textContent.items;
+
+    if (items.length === 0) continue;
+
+    // Step 1: Detect page dimensions and calculate proportional grid split points
+    const view = page.view || [0, 0, 595, 842];
+    const pageWidth = (view[2] - view[0]) || 595;
+
+    // Proportional boundaries based on visual textbook grid columns:
+    const rightColumnThreshold = pageWidth * 0.36;
+    const innerSplitThreshold = pageWidth * 0.19;
+
+    const thresholdY = 8;
+    let rows = []; // array of { y, items: [] }
+
+    items.forEach(item => {
+      const text = item.str;
+      if (!text || !text.trim()) return;
+
+      const x = item.transform[4];
+      const y = item.transform[5];
+
+      // Exclude right-column example sentences completely
+      if (x > rightColumnThreshold) return;
+
+      let foundRow = rows.find(r => Math.abs(r.y - y) <= thresholdY);
+      if (foundRow) {
+        foundRow.items.push({ x, text });
+      } else {
+        rows.push({ y, items: [{ x, text }] });
+      }
+    });
+
+    // Step 2: Sort rows descending by Y (top of the page to bottom)
+    rows.sort((a, b) => b.y - a.y);
+
+    // Step 3: Sort elements inside each row left-to-right (ascending X)
+    rows.forEach(row => {
+      row.items.sort((a, b) => a.x - b.x);
+
+      // Merge segments that are closely spaced horizontally
+      let merged = [];
+      row.items.forEach(item => {
+        if (merged.length === 0) {
+          merged.push(item);
+        } else {
+          const last = merged[merged.length - 1];
+          const approxCharWidth = 5;
+          const lastRightEdge = last.x + last.text.length * approxCharWidth;
+          const horizontalDistance = item.x - lastRightEdge;
+
+          if (horizontalDistance < 15) {
+            last.text += " " + item.text;
+          } else {
+            merged.push(item);
+          }
+        }
+      });
+      row.items = merged;
+    });
+
+    // Step 4: Stateful sequential parsing of left-column rows
+    let currentWord = null;
+    let pendingHiragana = "";
+
+    rows.forEach((row, rowIndex) => {
+      // Divide the left column horizontally using our dynamic split threshold
+      const leftText = row.items.filter(item => item.x < innerSplitThreshold).map(item => item.text).join(" ").trim();
+      const rightText = row.items.filter(item => item.x >= innerSplitThreshold).map(item => item.text).join(" ").trim();
+      const fullText = (leftText + " " + rightText).trim();
+
+      if (!fullText) return;
+
+      // Match Chapter/Lesson headers (Chương X, Bài X, UNIT X, etc.)
+      let isChapter = false;
+      let chapterName = "";
+
+      // Pattern 1: CHƯƠNG X - BÀI Y or CHƯƠNG X BÀI Y
+      const match1 = fullText.match(/^(?:CHƯƠNG|Chương)\s*(\d+|[I|V|X]+)\s*(?:[\s\-–:\.\/|]+)?\s*(?:BÀI|Bài)\s*(\d+|[I|V|X]+)$/i);
+      // Pattern 2: X| BÀI Y or X | Bài Y
+      const match2 = fullText.match(/^(\d+|[I|V|X]+)\s*\|\s*(?:BÀI|Bài)\s*(\d+|[I|V|X]+)$/i);
+      // Pattern 3: Generic start like "Chương X" or "Bài Y" or "UNIT X" at the beginning of the line
+      const match3 = fullText.match(/^(?:Chương|Bài|Bài học|UNIT|LESSON|Chapter|CHƯƠNG|BÀI)\s*(\d+|[I|V|X]+)$/i);
+
+      if (match1) {
+        isChapter = true;
+        chapterName = `${match1[1]}| Bài ${match1[2]}`;
+      } else if (match2) {
+        isChapter = true;
+        chapterName = `${match2[1]}| Bài ${match2[2]}`;
+      } else if (match3) {
+        isChapter = true;
+        chapterName = fullText.trim();
+      } else {
+        // Fallback if there is a generic match but we want to make sure it's really a header (not containing comma or too long)
+        const generalMatch = fullText.match(/^(?:Chương|Bài|Bài học|UNIT|LESSON|Chapter|CHƯƠNG|BÀI)\s*(\d+|[I|V|X]+|[a-zA-Z\s\d]+)$/i);
+        if (generalMatch && fullText.length < 30 && !fullText.includes(",") && !fullText.includes(".")) {
+          isChapter = true;
+          chapterName = fullText.trim();
+        }
+      }
+
+      if (isChapter) {
+        saveParsedWord(currentWord);
+        currentWord = null;
+        currentChapter = chapterName;
+        pendingHiragana = ""; // Reset!
+        return;
+      }
+
+      // Look-ahead check: is this line a pure Hiragana Furigana line above a Kanji line?
+      const hasKanji = /[\u4e00-\u9faf]/.test(leftText);
+      const hasHiragana = /[\u3040-\u309f]/.test(leftText);
+
+      if (hasHiragana && !hasKanji) {
+        const nextRow = rows[rowIndex + 1];
+        if (nextRow) {
+          const nextLeftText = nextRow.items.filter(item => item.x < innerSplitThreshold).map(item => item.text).join(" ").trim();
+          const nextHasKanji = /[\u4e00-\u9faf]/.test(nextLeftText);
+          if (nextHasKanji) {
+            pendingHiragana = leftText;
+            return; // Skip starting a word for this row, it is Furigana!
+          }
+        }
+      }
+
+      // Check for new vocabulary row (header)
+      const hasJapanese = /[\u3040-\u30ff\u4e00-\u9faf]/.test(leftText);
+      const hasKanjiOrKatakana = /[\u4e00-\u9faf\u30a0-\u30ff]/.test(leftText);
+
+      // Header right has POS like (N), a dash, or Hán Việt letters
+      const rightTextWithoutPOS = rightText.replace(/\([A-Za-z\d\s]+\)/g, "").trim();
+      const hasHeaderRight = rightText && (/[a-zA-ZÀ-ỹ]/.test(rightText) || rightText.includes("-") || /\(.*\)/.test(rightText));
+
+      // A new word starts if we have Japanese on the left AND:
+      const isNewWord = hasJapanese && (
+        hasKanjiOrKatakana ||
+        hasHeaderRight ||
+        (currentWord && currentWord.meaning)
+      );
+
+      if (isNewWord) {
+        saveParsedWord(currentWord);
+        currentWord = {
+          kanji: leftText,
+          hiragana: pendingHiragana || "",
+          hanviet: rightTextWithoutPOS || "-",
+          meaning: "",
+          chapter: currentChapter
+        };
+        pendingHiragana = ""; // Reset!
+      } else if (currentWord) {
+        // If the line contains no Japanese characters, it is 100% a Vietnamese meaning translation line!
+        const isMeaningLine = !hasJapanese;
+
+        if (isMeaningLine) {
+          const cleanMeaning = leftText.replace(/[◇•\s]+/g, " ").trim();
+          if (cleanMeaning) {
+            currentWord.meaning = currentWord.meaning ? currentWord.meaning + ", " + cleanMeaning : cleanMeaning;
+          }
+        } else {
+          // Check for Hiragana reading continuation
+          if (leftText && /[\u3040-\u30ff\u4e00-\u9faf]/.test(leftText)) {
+            currentWord.hiragana = currentWord.hiragana ? currentWord.hiragana + " " + leftText : leftText;
+          }
+          // Check for Sino-Vietnamese reading continuation
+          if (rightText) {
+            const cleanRight = rightText.replace(/\([A-Za-z\d\s]+\)/g, "").trim();
+            if (cleanRight && /^[A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯÝỲỸ\s]+$/.test(cleanRight)) {
+              currentWord.hanviet = currentWord.hanviet && currentWord.hanviet !== "-" ? currentWord.hanviet + " " + cleanRight : cleanRight;
+            }
+          }
+        }
+      }
+    });
+
+    // Save last word of the page if exists
+    saveParsedWord(currentWord);
+  }
+
+  return { parsedWords, numPages };
+}
+
 async function parsePDFFile(file) {
   if (!file) return;
-  
+
   const progressContainer = document.getElementById("pdf-progress-container");
   const progressStatus = document.getElementById("pdf-progress-status");
   const progressPercent = document.getElementById("pdf-progress-percent");
   const progressBar = document.getElementById("pdf-progress-bar");
   const summaryStats = document.getElementById("pdf-summary-stats");
-  const dropZone = document.getElementById("pdf-drop-zone");
-  
+
   progressContainer.style.display = "block";
   summaryStats.style.display = "none";
   progressBar.style.width = "0%";
   progressPercent.textContent = "0%";
   progressStatus.textContent = "Đang đọc tệp PDF...";
-  
+
   try {
     const arrayBuffer = await file.arrayBuffer();
-    
-    // Load the PDF Document
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const numPages = pdf.numPages;
-    
-    let currentChapter = "Chương 1 (Mặc định N3)";
-    let parsedWords = [];
-    let chapterCounts = {}; // Keep track of words in each chapter
-    
-    // Save word helper to enforce rules and default fields
-    const saveParsedWord = (word) => {
-      if (!word) return;
-      
-      let kan = (word.kanji || "").trim();
-      let hira = (word.hiragana || "").trim();
-      let han = (word.hanviet || "").trim().toUpperCase();
-      let mean = (word.meaning || "").trim();
-      
-      if ((kan || hira) && mean) {
-        if (!hira) {
-          hira = kan; // fallback
-        }
-        
-        parsedWords.push({
-          kanji: kan,
-          hiragana: hira,
-          hanviet: han,
-          meaning: mean,
-          chapter: word.chapter
-        });
-        
-        chapterCounts[word.chapter] = (chapterCounts[word.chapter] || 0) + 1;
-      }
-    };
-    
-    // Iterate page by page
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      progressStatus.textContent = `Đang quét & phân tích trang ${pageNum} / ${numPages}...`;
-      const progressVal = Math.round((pageNum / numPages) * 100);
+
+    const { parsedWords, numPages } = await parsePDFArrayBuffer(arrayBuffer, (pageNum, totalPages) => {
+      progressStatus.textContent = `Đang quét & phân tích trang ${pageNum} / ${totalPages}...`;
+      const progressVal = Math.round((pageNum / totalPages) * 100);
       progressBar.style.transformOrigin = "left";
       progressBar.style.transform = `scaleX(${progressVal / 100})`;
       progressPercent.textContent = `${progressVal}%`;
-      
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const items = textContent.items;
-      
-      if (items.length === 0) continue;
-      
-      // Step 1: Detect page dimensions and calculate proportional grid split points
-      const view = page.view || [0, 0, 595, 842];
-      const pageWidth = (view[2] - view[0]) || 595;
-      
-      // Proportional boundaries based on visual textbook grid columns:
-      // - The left vocabulary column occupies exactly 36% of the page width
-      const rightColumnThreshold = pageWidth * 0.36;
-      // - The horizontal separation point between Kanji (left) and Hán Việt (right) inside the vocabulary column is at 19% of page width
-      const innerSplitThreshold = pageWidth * 0.19;
-      
-      const thresholdY = 8;
-      let rows = []; // array of { y, items: [] }
-      
-      items.forEach(item => {
-        const text = item.str;
-        if (!text || !text.trim()) return;
-        
-        const x = item.transform[4];
-        const y = item.transform[5];
-        
-        // Exclude right-column example sentences completely
-        if (x > rightColumnThreshold) return;
-        
-        let foundRow = rows.find(r => Math.abs(r.y - y) <= thresholdY);
-        if (foundRow) {
-          foundRow.items.push({ x, text });
-        } else {
-          rows.push({ y, items: [{ x, text }] });
-        }
-      });
-      
-      // Step 2: Sort rows descending by Y (top of the page to bottom)
-      rows.sort((a, b) => b.y - a.y);
-      
-      // Step 3: Sort elements inside each row left-to-right (ascending X)
-      rows.forEach(row => {
-        row.items.sort((a, b) => a.x - b.x);
-        
-        // Merge segments that are closely spaced horizontally
-        let merged = [];
-        row.items.forEach(item => {
-          if (merged.length === 0) {
-            merged.push(item);
-          } else {
-            const last = merged[merged.length - 1];
-            const approxCharWidth = 5;
-            const lastRightEdge = last.x + last.text.length * approxCharWidth;
-            const horizontalDistance = item.x - lastRightEdge;
-            
-            if (horizontalDistance < 15) {
-              last.text += " " + item.text;
-            } else {
-              merged.push(item);
-            }
-          }
-        });
-        row.items = merged;
-      });
-      
-      // Step 4: Stateful sequential parsing of left-column rows
-      let currentWord = null;
-      
-      rows.forEach(row => {
-        // Divide the left column horizontally using our dynamic split threshold
-        const leftText = row.items.filter(item => item.x < innerSplitThreshold).map(item => item.text).join(" ").trim();
-        const rightText = row.items.filter(item => item.x >= innerSplitThreshold).map(item => item.text).join(" ").trim();
-        const fullText = (leftText + " " + rightText).trim();
-        
-        if (!fullText) return;
-        
-        // Match Chapter/Lesson headers (Chương X, Bài X, UNIT X, etc.)
-        const chapMatch = fullText.match(/(Chương|Bài|Bài học|UNIT|LESSON|Chapter|CHƯƠNG|BÀI)\s*(\d+|[I|V|X]+|[a-zA-Z\s\d]+)/i);
-        if (chapMatch) {
-          saveParsedWord(currentWord);
-          currentWord = null;
-          currentChapter = fullText.trim();
-          return;
-        }
-        
-        // Check for new vocabulary row (header)
-        const hasJapanese = /[\u3040-\u30ff\u4e00-\u9faf]/.test(leftText);
-        const hasKanjiOrKatakana = /[\u4e00-\u9faf\u30a0-\u30ff]/.test(leftText);
-        
-        // Header right has POS like (N), a dash, or Hán Việt letters
-        const rightTextWithoutPOS = rightText.replace(/\([A-Za-z\d\s]+\)/g, "").trim();
-        const hasHeaderRight = rightText && (/[a-zA-ZÀ-ỹ]/.test(rightText) || rightText.includes("-") || /\(.*\)/.test(rightText));
-        
-        // A new word starts if we have Japanese on the left AND:
-        // - It has Kanji/Katakana characters (since reading rows only have Hiragana)
-        // - OR it has header right content
-        // - OR the previous word is already completed with a meaning
-        const isNewWord = hasJapanese && (
-          hasKanjiOrKatakana || 
-          hasHeaderRight || 
-          (currentWord && currentWord.meaning)
-        );
-        
-        if (isNewWord) {
-          saveParsedWord(currentWord);
-          currentWord = {
-            kanji: leftText,
-            hiragana: "",
-            hanviet: rightTextWithoutPOS || "-",
-            meaning: "",
-            chapter: currentChapter
-          };
-        } else if (currentWord) {
-          // If the line contains no Japanese characters, it is 100% a Vietnamese meaning translation line!
-          const isMeaningLine = !hasJapanese;
-          
-          if (isMeaningLine) {
-            const cleanMeaning = leftText.replace(/[◇•\s]+/g, " ").trim();
-            if (cleanMeaning) {
-              currentWord.meaning = currentWord.meaning ? currentWord.meaning + ", " + cleanMeaning : cleanMeaning;
-            }
-          } else {
-            // Check for Hiragana reading continuation
-            if (leftText && /[\u3040-\u30ff\u4e00-\u9faf]/.test(leftText)) {
-              currentWord.hiragana = currentWord.hiragana ? currentWord.hiragana + " " + leftText : leftText;
-            }
-            // Check for Sino-Vietnamese reading continuation
-            if (rightText) {
-              const cleanRight = rightText.replace(/\([A-Za-z\d\s]+\)/g, "").trim();
-              if (cleanRight && /^[A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯÝỲỸ\s]+$/.test(cleanRight)) {
-                currentWord.hanviet = currentWord.hanviet && currentWord.hanviet !== "-" ? currentWord.hanviet + " " + cleanRight : cleanRight;
-              }
-            }
-          }
-        }
-      });
-      
-      // Save last word of the page if exists
-      saveParsedWord(currentWord);
-    }
-    
+    });
+
     // Group words into the temporary workspace state
     pdfParsedChapters = {};
+    let chapterCounts = {};
     parsedWords.forEach(word => {
       if (!pdfParsedChapters[word.chapter]) {
         pdfParsedChapters[word.chapter] = [];
       }
       pdfParsedChapters[word.chapter].push(word);
+      chapterCounts[word.chapter] = (chapterCounts[word.chapter] || 0) + 1;
     });
-    
+
     // Bind stats into UI
     document.getElementById("pdf-stat-pages").textContent = numPages;
     document.getElementById("pdf-stat-chapters").textContent = Object.keys(pdfParsedChapters).length;
     document.getElementById("pdf-stat-words").textContent = parsedWords.length;
-    
+
     progressContainer.style.display = "none";
     summaryStats.style.display = "block";
-    
+
     renderPDFChaptersList(chapterCounts);
     renderPDFWordsPreview();
-    
+
     showToast(`Đã phân tích xong PDF! Quét được ${parsedWords.length} từ vựng N3.`, "success");
-    
+
   } catch (err) {
     console.error("Lỗi parse PDF:", err);
     progressContainer.style.display = "none";
@@ -1676,16 +1760,117 @@ async function parsePDFFile(file) {
   }
 }
 
+async function syncFolder() {
+  const progressContainer = document.getElementById("pdf-progress-container");
+  const progressStatus = document.getElementById("pdf-progress-status");
+  const progressPercent = document.getElementById("pdf-progress-percent");
+  const progressBar = document.getElementById("pdf-progress-bar");
+  const summaryStats = document.getElementById("pdf-summary-stats");
+
+  try {
+    if (!window.showDirectoryPicker) {
+      showToast("Trình duyệt không hỗ trợ File System Access API hoặc đang chạy ở chế độ file:///. Hãy chạy bằng Live Server hoặc Localhost!", "error");
+      return;
+    }
+
+    // Request directory handle from user
+    const dirHandle = await window.showDirectoryPicker();
+
+    // Find all PDF files in selected folder
+    const pdfEntries = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === "file" && entry.name.toLowerCase().endsWith(".pdf")) {
+        pdfEntries.push(entry);
+      }
+    }
+
+    if (pdfEntries.length === 0) {
+      showToast("Không tìm thấy tệp PDF nào trong thư mục được chọn!", "error");
+      return;
+    }
+
+    progressContainer.style.display = "block";
+    summaryStats.style.display = "none";
+    progressBar.style.width = "0%";
+    progressPercent.textContent = "0%";
+
+    let allWords = [];
+
+    for (let i = 0; i < pdfEntries.length; i++) {
+      const entry = pdfEntries[i];
+      const file = await entry.getFile();
+      const arrayBuffer = await file.arrayBuffer();
+
+      progressStatus.textContent = `Đang đọc file [${i + 1}/${pdfEntries.length}]: ${entry.name}...`;
+      progressBar.style.transformOrigin = "left";
+      progressBar.style.transform = `scaleX(${(i / pdfEntries.length)})`;
+      progressPercent.textContent = `${Math.round((i / pdfEntries.length) * 100)}%`;
+
+      const { parsedWords } = await parsePDFArrayBuffer(arrayBuffer, (pageNum, totalPages) => {
+        progressStatus.textContent = `Đang quét ${entry.name}: trang ${pageNum} / ${totalPages}...`;
+      });
+
+      allWords = [...allWords, ...parsedWords];
+    }
+
+    if (allWords.length === 0) {
+      showToast("Không tìm thấy từ vựng nào hợp lệ để đồng bộ!", "error");
+      progressContainer.style.display = "none";
+      return;
+    }
+
+    // Generate content for kotoba_database.js
+    const dbContent = `// File cơ sở dữ liệu từ vựng Kotoba Booster.
+// Được tạo tự động vào lúc ${new Date().toLocaleString('vi-VN')}
+window.KOTOBA_PRESET_DB = ${JSON.stringify(allWords, null, 2)};
+`;
+
+    // Overwrite the kotoba_database.js file in the directory
+    const dbFileHandle = await dirHandle.getFileHandle("kotoba_database.js", { create: true });
+    const writable = await dbFileHandle.createWritable();
+    await writable.write(dbContent);
+    await writable.close();
+
+    // Update local app state and IndexedDB
+    vocabList = allWords;
+    await saveVocabList();
+    updateGlobalStats();
+    populateChapterDropdown();
+    renderVocabTable();
+
+    // Update player status
+    currentIndex = 0;
+    historyStack = [];
+    historyIndex = -1;
+    displayCurrentWord();
+
+    progressContainer.style.display = "none";
+    showToast(`Đã đồng bộ xong ${pdfEntries.length} file PDF. Tổng cộng ${allWords.length} từ vựng đã được lưu vào kotoba_database.js!`, "success");
+
+    // Redirect back to Player Tab
+    document.getElementById("nav-player").click();
+
+  } catch (err) {
+    console.error("Lỗi đồng bộ thư mục:", err);
+    progressContainer.style.display = "none";
+    if (err.name === "AbortError") {
+      showToast("Hủy bỏ thao tác chọn thư mục.", "info");
+    } else {
+      showToast(`Lỗi đồng bộ: ${err.message}`, "error");
+    }
+  }
+}
+
 function renderPDFChaptersList(chapterCounts) {
   const container = document.getElementById("pdf-chapters-list-container");
   container.innerHTML = "";
-  
+
   const chapters = Object.keys(pdfParsedChapters);
   if (chapters.length === 0) {
     container.innerHTML = '<div class="chapters-empty-placeholder">Không tìm thấy chương học</div>';
     return;
   }
-  
+
   chapters.forEach((chap, idx) => {
     const count = chapterCounts[chap] || 0;
     const row = document.createElement("div");
@@ -1698,7 +1883,7 @@ function renderPDFChaptersList(chapterCounts) {
       </div>
     `;
     container.appendChild(row);
-    
+
     // Toggle class and refresh preview table on change
     row.querySelector("input").addEventListener("change", (e) => {
       if (e.target.checked) {
@@ -1715,26 +1900,26 @@ function renderPDFWordsPreview() {
   const tbody = document.getElementById("pdf-words-preview-body");
   const emptyPlaceholder = document.getElementById("pdf-words-empty");
   tbody.innerHTML = "";
-  
+
   const checkedChapters = [];
   document.querySelectorAll('#pdf-chapters-list-container input[type="checkbox"]').forEach(chk => {
     if (chk.checked) {
       checkedChapters.push(chk.getAttribute("data-chapter"));
     }
   });
-  
+
   let list = [];
   checkedChapters.forEach(chap => {
     if (pdfParsedChapters[chap]) {
       list = [...list, ...pdfParsedChapters[chap]];
     }
   });
-  
+
   if (list.length === 0) {
     emptyPlaceholder.style.display = "flex";
   } else {
     emptyPlaceholder.style.display = "none";
-    
+
     // Performance optimization: limit visual preview items to first 100
     const limit = Math.min(list.length, 100);
     for (let i = 0; i < limit; i++) {
@@ -1749,7 +1934,7 @@ function renderPDFWordsPreview() {
       `;
       tbody.appendChild(tr);
     }
-    
+
     if (list.length > 100) {
       const extraTr = document.createElement("tr");
       extraTr.innerHTML = `
@@ -1770,12 +1955,12 @@ function importSelectedPDFChapters() {
       checkedChapters.push(chk.getAttribute("data-chapter"));
     }
   });
-  
+
   if (checkedChapters.length === 0) {
     showToast("Vui lòng chọn ít nhất một chương để nhập!", "error");
     return;
   }
-  
+
   let importedWordsCount = 0;
   checkedChapters.forEach(chap => {
     if (pdfParsedChapters[chap]) {
@@ -1783,31 +1968,31 @@ function importSelectedPDFChapters() {
       importedWordsCount += pdfParsedChapters[chap].length;
     }
   });
-  
+
   if (importedWordsCount > 0) {
     saveVocabList();
     updateGlobalStats();
     populateChapterDropdown();
     renderVocabTable();
-    
+
     // Set the filter select focus on the first newly imported chapter
     activeChapterFilter = checkedChapters[0];
     document.getElementById("player-chapter-select").value = activeChapterFilter;
-    
+
     currentIndex = 0;
     historyStack = [];
     historyIndex = -1;
     displayCurrentWord();
-    
+
     showToast(`Đã nhập thành công ${importedWordsCount} từ vựng từ ${checkedChapters.length} chương!`, "success");
-    
+
     // Reset wizard workspace
     document.getElementById("pdf-summary-stats").style.display = "none";
     document.getElementById("pdf-drop-zone").style.display = "block";
     document.getElementById("pdf-chapters-list-container").innerHTML = '<div class="chapters-empty-placeholder">Chưa tải file PDF</div>';
     document.getElementById("pdf-words-preview-body").innerHTML = "";
     document.getElementById("pdf-words-empty").style.display = "flex";
-    
+
     // Automatically redirect back to Player tab
     document.getElementById("nav-player").click();
   }

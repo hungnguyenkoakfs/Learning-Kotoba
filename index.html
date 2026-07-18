@@ -307,6 +307,18 @@
             
             <!-- Left Column: Drag & Drop Zone -->
             <div class="pdf-column-left">
+              <!-- Panel 1: Folder Sync -->
+              <div class="glass-card panel-card" style="margin-bottom: 20px;">
+                <h2 class="panel-title">
+                  <i data-lucide="refresh-cw"></i> Đồng bộ Thư mục Dự án
+                </h2>
+                <p class="panel-desc">Chọn thư mục <code>LearningKotoba</code>. Hệ thống sẽ tự động quét toàn bộ file PDF, phân tích từ vựng và ghi đè trực tiếp vào file <code>kotoba_database.js</code> trên máy tính.</p>
+                <button id="btn-sync-folder" class="btn-primary btn-full" style="background: linear-gradient(135deg, hsl(var(--purple)), hsl(var(--magenta))); border: none; box-shadow: 0 0 15px rgba(255, 0, 255, 0.2);">
+                  <i data-lucide="folder-open"></i> Chọn thư mục & Đồng bộ
+                </button>
+              </div>
+
+              <!-- Panel 2: PDF drag & drop upload -->
               <div class="glass-card panel-card">
                 <h2 class="panel-title">
                   <i data-lucide="file-text"></i> Nhập Từ Vựng PDF N3
